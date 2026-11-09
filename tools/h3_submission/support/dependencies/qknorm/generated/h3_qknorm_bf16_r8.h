@@ -1,0 +1,12 @@
+#ifndef NINETOOTHED_H3_QKNORM_BF16_R8_H
+#define NINETOOTHED_H3_QKNORM_BF16_R8_H
+
+#include "../../abi/ninetoothed.h"
+
+#ifdef __cplusplus
+extern "C" NineToothedResult launch_h3_qknorm_bf16_r8(NineToothedStream stream, NineToothedTensor ninetoothed_tensor_60, NineToothedTensor ninetoothed_tensor_61, NineToothedTensor ninetoothed_tensor_62, NineToothedTensor ninetoothed_tensor_63, NineToothedTensor ninetoothed_tensor_64, NineToothedTensor ninetoothed_tensor_65, NineToothedTensor ninetoothed_tensor_66, NineToothedTensor ninetoothed_tensor_67);
+#else
+NineToothedResult launch_h3_qknorm_bf16_r8(NineToothedStream stream, NineToothedTensor ninetoothed_tensor_60, NineToothedTensor ninetoothed_tensor_61, NineToothedTensor ninetoothed_tensor_62, NineToothedTensor ninetoothed_tensor_63, NineToothedTensor ninetoothed_tensor_64, NineToothedTensor ninetoothed_tensor_65, NineToothedTensor ninetoothed_tensor_66, NineToothedTensor ninetoothed_tensor_67);
+#endif
+
+#endif

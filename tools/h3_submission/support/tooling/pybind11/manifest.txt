@@ -1,0 +1,50 @@
+{
+    arch = "x86_64",
+    artifacts = {
+        installdir = "/public/home/xdzs2026_b0342/h3-v4-clean-5ptbn9qm/xmake-global/.xmake/packages/p/pybind11/v3.1.0/7b14d15061b246ae8c6ae52c7baaee1d"
+    },
+    configs = {
+        debug = false,
+        pic = true,
+        shared = false
+    },
+    deps = {
+        ["ca-certificates"] = {
+            buildhash = "e9ba281ae183402a80dc072d4d571c20",
+            version = "20250131"
+        },
+        openssl = {
+            buildhash = "6c51ab6278e2479b883dffafac69fdaf",
+            version = "3.0.2"
+        },
+        python = {
+            buildhash = "5b29e409d339499392171d61390dfc38",
+            version = "3.11.9"
+        }
+    },
+    description = "Seamless operability between C++11 and Python.",
+    envs = { },
+    kind = "library",
+    librarydeps = {
+        "python",
+        "openssl"
+    },
+    license = "BSD-3-Clause",
+    mode = "release",
+    name = "pybind11",
+    pathenvs = {
+        "ACLOCAL_PATH",
+        "CMAKE_PREFIX_PATH",
+        "DYLD_LIBRARY_PATH",
+        "LD_LIBRARY_PATH",
+        "PATH",
+        "PKG_CONFIG_PATH",
+        "PYTHONPATH"
+    },
+    plat = "linux",
+    repo = {
+        name = "h3-offline",
+        url = "/public/home/xdzs2026_b0342/xmake-offline/xmake-repo"
+    },
+    version = "v3.1.0"
+}

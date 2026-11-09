@@ -1,9 +1,15 @@
+#include "h3_qkrope.hpp"
+#include "h3_qknorm.hpp"
+#include <infinicore/ops/projection_swiglu.hpp>
 #include "minimax_h3_transformer.hpp"
 
 #include "../../global_state/global_state.hpp"
 #include "../models_registry.hpp"
 
 #include <infinicore/ops/add.hpp>
+#ifdef INFINILM_ENABLE_NINETOOTHED_HYGON_ADALN
+#include <infinicore/ops/adaln.hpp>
+#endif
 #include <infinicore/ops/cast.hpp>
 #include <infinicore/ops/distributed/allgather.hpp>
 #include <infinicore/ops/embedding.hpp>
@@ -11,6 +17,9 @@
 #include <infinicore/ops/mha.hpp>
 #include <infinicore/ops/mrope.hpp>
 #include <infinicore/ops/mul.hpp>
+#ifdef INFINILM_ENABLE_NINETOOTHED_HYGON_GATED_RESIDUAL
+#include <infinicore/ops/gated_residual.hpp>
+#endif
 #include <infinicore/ops/silu.hpp>
 #include <infinicore/ops/swiglu.hpp>
 #include <infinicore/ops/timestep_embedding.hpp>
@@ -51,11 +60,25 @@ infinicore::Tensor gather_rows(const infinicore::Tensor &table,
     return infinicore::op::embedding(indices, table);
 }
 
+infinicore::Tensor apply_gated_residual(const infinicore::Tensor &x,
+                                      const infinicore::Tensor &gate,
+                                      const infinicore::Tensor &branch) {
+#ifdef INFINILM_ENABLE_NINETOOTHED_HYGON_GATED_RESIDUAL
+    return infinicore::op::gated_residual(x, gate, branch);
+#else
+    return infinicore::op::add(x, infinicore::op::mul(gate, branch));
+#endif
+}
+
 infinicore::Tensor apply_adaln(const infinicore::Tensor &normalized,
                                const infinicore::Tensor &scale,
                                const infinicore::Tensor &shift) {
+#ifdef INFINILM_ENABLE_NINETOOTHED_HYGON_ADALN
+    return infinicore::op::adaln(normalized, scale, shift);
+#else
     auto scaled = infinicore::op::mul(normalized, scale);
     return infinicore::op::add(infinicore::op::add(normalized, scaled), shift);
+#endif
 }
 
 void require_tensor(const std::optional<infinicore::Tensor> &tensor,
@@ -127,8 +150,33 @@ infinicore::Tensor MiniMaxH3Attention::forward(
     key = key->view({batch_size * sequence_length, num_heads_, head_dim_});
     value = value->view({batch_size, sequence_length, num_heads_, head_dim_});
 
+#ifdef INFINILM_ENABLE_NINETOOTHED_HYGON_QKROPE
+    const bool fuse_qkrope = batch_size == 1 && query->size(0) >= 65
+        && rotary_cos_sin_cache.has_value() && position_ids.has_value()
+        && h3qr::eligible(query, key, norm_q_->weight(), norm_k_->weight(),
+                          rotary_cos_sin_cache.value(), position_ids.value(),
+                          float(norm_q_->eps()), float(norm_k_->eps()));
+    if (fuse_qkrope) {
+        std::tie(query, key) = h3qr::forward(norm_q_.get(), norm_k_.get(), query, key,
+                                           rotary_cos_sin_cache.value(), position_ids.value(), 16);
+        query = query->view({batch_size, sequence_length, num_heads_, head_dim_});
+        key = key->view({batch_size, sequence_length, num_heads_, head_dim_});
+    } else
+#endif
+    {
+#ifdef INFINILM_ENABLE_NINETOOTHED_HYGON_QKNORM
+    // The full-block measurements support this path from 65 packed tokens.
+    // Keep smaller calls on the original pair until they are measured beneficial.
+    if (query->size(0) >= 65) {
+        std::tie(query, key) = h3qk::normalize(norm_q_.get(), norm_k_.get(), query, key, true, 16);
+    } else {
+        query = norm_q_->forward(query);
+        key = norm_k_->forward(key);
+    }
+#else
     query = norm_q_->forward(query);
     key = norm_k_->forward(key);
+#endif
     query = query->view({batch_size, sequence_length, num_heads_, head_dim_});
     key = key->view({batch_size, sequence_length, num_heads_, head_dim_});
 
@@ -174,6 +222,7 @@ infinicore::Tensor MiniMaxH3Attention::forward(
         query = query_squeezed->unsqueeze(0);
         key = key_squeezed->unsqueeze(0);
     }
+    }
     auto output = infinicore::op::mha(query, key, value, std::nullopt, scale_, false);
     output = output->view({batch_size, sequence_length, inner_dim_});
     return linear_forward(out_proj_, output);
@@ -214,8 +263,22 @@ MiniMaxH3MLP::MiniMaxH3MLP(size_t hidden_size, size_t ffn_hidden_size,
 infinicore::Tensor
 MiniMaxH3MLP::forward(const infinicore::Tensor &hidden_states) const {
     auto hidden_states_mutable = hidden_states;
-    auto [up, gate] = gate_up_proj_->forward_split(hidden_states_mutable);
-    auto activated = infinicore::op::swiglu(up, gate);
+    infinicore::Tensor activated;
+#ifdef INFINILM_ENABLE_NINETOOTHED_HYGON_PROJECTION_SWIGLU
+    // H3's local TP shard stores [up;gate]. Pre-transposed/quantized/scaled
+    // projections retain their existing forward implementation.
+    const auto plain = std::dynamic_pointer_cast<infinilm::quantization::NoneQuantization>(gate_up_proj_->get_quantization());
+    if (plain && !plain->weight_prepacked()
+        && !infinilm::global_state::get_infinilm_config().pre_transpose
+        && gate_up_proj_->get_quantization()->get_quant_scheme() == infinilm::quantization::QuantScheme::NONE
+        && !gate_up_proj_->has_bias() && gate_up_proj_->alpha() == 1.0f) {
+        activated = infinicore::op::projection_swiglu(hidden_states, gate_up_proj_->weight());
+    } else
+#endif
+    {
+        auto [up, gate] = gate_up_proj_->forward_split(hidden_states_mutable);
+        activated = infinicore::op::swiglu(up, gate);
+    }
     return linear_forward(down_proj_, activated);
 }
 
@@ -337,13 +400,12 @@ infinicore::Tensor MiniMaxH3TransformerBlock::forward(
     auto normalized = norm1_->forward(hidden_states);
     normalized = apply_adaln(normalized, scale_msa, shift_msa);
     auto attention_output = attn_->forward(normalized, rope, position_ids, rotary_cos_sin_cache);
-    auto output = infinicore::op::add(
-        hidden_states, infinicore::op::mul(gate_msa, attention_output));
+    auto output = apply_gated_residual(hidden_states, gate_msa, attention_output);
 
     normalized = norm2_->forward(output);
     normalized = apply_adaln(normalized, scale_mlp, shift_mlp);
     auto mlp_output = ff_->forward(normalized);
-    output = infinicore::op::add(output, infinicore::op::mul(gate_mlp, mlp_output));
+    output = apply_gated_residual(output, gate_mlp, mlp_output);
     return output;
 }
 

@@ -1,0 +1,19 @@
+{
+  "runtime_archive_sha256": "3e79d685a81ff92db2ef24282b8252e9839807f8706250713d9a0cf98db81450",
+  "upstream_commit": "65deb91f840ebaef752d028fad2f3217ce0950f4",
+  "files_copied_from_runtime": {
+    "csrc/layers/quantization/none_quantization.hpp": "081bf2db7ae351867647597a69594f2e008728f083e168cd2c7c2d948a403c6a",
+    "csrc/models/minimax_h3/h3_qknorm.cc": "bd3fe81bf7bd2f60ddbe1fdb700261e7dfaafba317502ca3873671411ae4aa70",
+    "csrc/models/minimax_h3/h3_qknorm.hpp": "9a952313bb20be4c6df79ada23b562854036844eee88ec9c7e3aa2007c3d18ba",
+    "csrc/models/minimax_h3/h3_qkrope.cc": "6282848a0bba82c4ea55ebb35df25a60abcdcf7d725e5372e6f57e735546f6dd",
+    "csrc/models/minimax_h3/h3_qkrope.hpp": "c374f09ba87f52f0bdeb58a05092f5c6e3ea97c132eed047729f9e78f7c0bd40",
+    "csrc/models/minimax_h3/minimax_h3_transformer.cpp": "1574b684b8cbdf95f40ac04bb575235ec483a0c8cc170337b4eef8b45b1cc19c",
+    "examples/minimax_h3.py": "ca54a18a73a7d760d644ca4eb2c3b20678f88dfdbcfa26a62dcd3de617b31af4",
+    "examples/minimax_h3_compare.py": "e143c28e4b3acb885662e0aa238aa00ca17cbcc82077f465f2ce57d0f1225590",
+    "pyproject.toml": "384305d84b00097f8cc6fa647c512bb76fbb7b53080572b2227275ce7ef1944c",
+    "python/infinilm/multimodal/minimax_h3.py": "5e5fc07bf0c02925c553603285fd163c44c973eb6c3de71349cf6c7677e3e4e5",
+    "setup.py": "341bb9260722e2000750342ffdd188551fa313b763119789e42c1627927a698a",
+    "xmake.lua": "628ea01048460b3a0735900f5f049855a24469e885daee8c55c29627d4c6c4bd"
+  },
+  "retained_upstream_files": "Other tracked upstream files are retained; source comparison ignores CRLF/LF only."
+}

@@ -44,4 +44,5 @@ setup(
         "egg_info": EggInfo,
     },
     python_requires=">=3.10",
+    install_requires=["janus>=2.0,<3", "xxhash>=3.2,<4"], 
 )

@@ -1,4 +1,26 @@
-add_requires("pybind11")
+option("ninetoothed-hygon-qkrope")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Experimental H3 D128 Q/K norm plus partial M-RoPE")
+option_end()
+if has_config("ninetoothed-hygon-qkrope") then
+    add_defines("INFINILM_ENABLE_NINETOOTHED_HYGON_QKROPE")
+end
+
+option("ninetoothed-hygon-qknorm")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Experimental D128 Hygon NineToothed Q/K normalization")
+option_end()
+if has_config("ninetoothed-hygon-qknorm") then
+    add_defines("INFINILM_ENABLE_NINETOOTHED_HYGON_QKNORM")
+end
+
+if os.getenv("H3_REVIEW_VENDOR_HEADERS") then
+    add_includedirs(path.join(os.projectdir(), "../../tooling/pybind11/include"), {system = true})
+else
+    add_requires("pybind11")
+end
 
 set_toolchains("gcc")
 
@@ -21,8 +43,33 @@ end
 add_includedirs("third_party/spdlog/include")
 add_includedirs("third_party/json/single_include/")
 
+option("ninetoothed-hygon-adaln")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Route H3 AdaLN through the optional matching InfiniCore operator")
+option_end()
+if has_config("ninetoothed-hygon-adaln") then
+    add_defines("INFINILM_ENABLE_NINETOOTHED_HYGON_ADALN")
+end
+
+option("ninetoothed-hygon-gated-residual")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Enable guarded NineToothed Hygon gated residual fusion")
+option_end()
+
+if has_config("ninetoothed-hygon-gated-residual") then
+    add_defines("INFINILM_ENABLE_NINETOOTHED_HYGON_GATED_RESIDUAL")
+end
+
 target("_infinilm")
-    add_packages("pybind11")
+    if os.getenv("H3_REVIEW_VENDOR_HEADERS") then
+        add_includedirs(os.getenv("H3_REVIEW_PYTHON_INCLUDE"), {system = true})
+        add_linkdirs(os.getenv("H3_REVIEW_PYTHON_LIBDIR"))
+        add_links(os.getenv("H3_REVIEW_PYTHON_LINK"))
+    else
+        add_packages("pybind11")
+    end
     set_default(false)
     add_rules("python.module", {soabi = true})
     set_languages("cxx17")
@@ -43,4 +90,21 @@ target("_infinilm")
     add_files("csrc/**.cc")
 
     set_installdir("python/infinilm")
+    add_includedirs(path.join(os.projectdir(), "../../dependencies/qknorm/generated"))
+    add_linkdirs("/opt/dtk/lib", path.join(os.projectdir(), "../../dependencies/qknorm/build"))
+    add_links("h3-qknorm-aot", "amdhip64")
+    add_ldflags("-Wl,-z,defs", {force = true})
+    add_includedirs(path.join(os.projectdir(), "../../dependencies/qkrope/generated"))
+    add_linkdirs(path.join(os.projectdir(), "../../dependencies/qkrope/build"))
+    add_links("h3-qkrope-aot")
 target_end()
+
+
+option("ninetoothed-hygon-projection-swiglu")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Use matching InfiniCore H3 projection/SwiGLU fusion")
+option_end()
+if has_config("ninetoothed-hygon-projection-swiglu") then
+    add_defines("INFINILM_ENABLE_NINETOOTHED_HYGON_PROJECTION_SWIGLU")
+end

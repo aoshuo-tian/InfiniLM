@@ -47,6 +47,8 @@ public:
         const infinicore::Device &device,
         int split_dim = -1) const override;
 
+bool weight_prepacked() const { return weight_prepacked_; }
+
 private:
     mutable bool weight_prepacked_ = false; // true when weight was pre-packed for Ascend
 };

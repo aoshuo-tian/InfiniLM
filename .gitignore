@@ -34,3 +34,17 @@ __pycache__/
 *.http
 
 *.nsys-rep
+
+# Reviewed H3 delivery metadata and build-support sources
+!h3_submission/**
+!tools/h3_submission/**
+!examples/h3_submission/**
+
+examples/h3_submission/**/h3_tp8_worker_entry_20261109.py
+
+# Never publish interpreter caches or compiled host libraries.
+__pycache__/
+*.pyc
+*.o
+*.a
+*.so

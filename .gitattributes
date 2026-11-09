@@ -1,0 +1,16 @@
+# Preserve SHA-pinned tested bytes and generated AOT inputs.
+csrc/layers/quantization/none_quantization.hpp -text
+csrc/models/minimax_h3/h3_qknorm.cc -text
+csrc/models/minimax_h3/h3_qknorm.hpp -text
+csrc/models/minimax_h3/h3_qkrope.cc -text
+csrc/models/minimax_h3/h3_qkrope.hpp -text
+csrc/models/minimax_h3/minimax_h3_transformer.cpp -text
+examples/minimax_h3.py -text
+examples/minimax_h3_compare.py -text
+pyproject.toml -text
+python/infinilm/multimodal/minimax_h3.py -text
+setup.py -text
+xmake.lua -text
+h3_submission/** -text
+examples/h3_submission/** -text
+tools/h3_submission/** -text

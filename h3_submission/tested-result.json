@@ -1,0 +1,56 @@
+{
+  "complete": true,
+  "native_job": "8c427b2b1c634f46b7297b02f16a38d6",
+  "reference_job": "2c358a52328a4e679f054f572041dad5",
+  "native_text_tp_devices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "native_transformer_tp_devices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "width": 768,
+  "height": 928,
+  "frames_each": 124,
+  "fps": 24,
+  "requested_steps": 50,
+  "transformer_calls": 49,
+  "average_ssim_percent": 82.468,
+  "previous_4plus4_percent": 70.104,
+  "difference_percentage_points": 12.364,
+  "comparison_exit": 0,
+  "generation_exit": 0,
+  "gpu_resources_released": true,
+  "cpu_manually_ended": true,
+  "visual_review": "not_performed",
+  "formal_quality_pass": null,
+  "new_model_compilation": false,
+  "prompt": "A dog falls asleep",
+  "seed": 42,
+  "vae": "Existing BF16 Torch/Diffusers, original casts/mixed precision, vendor Flash; no later VAE replacements",
+  "runtime_archive_sha256": "3e79d685a81ff92db2ef24282b8252e9839807f8706250713d9a0cf98db81450",
+  "packaging_build_revalidated_on_dcu": false,
+  "native_video": {
+    "filename": "native-tp8-768x928-s50.mp4",
+    "bytes": 1629726,
+    "sha256": "8a133c1c1f6866779badbaac3a75c3657f38ec1655301bfaabd82e58526d0ebe"
+  },
+  "reference_video": {
+    "filename": "reference-768x928-s50.mp4",
+    "bytes": 1635492,
+    "sha256": "bafd0340dd96146c275708d339ca9bca570c394f4adf635bd40049dcca929b14"
+  }
+}

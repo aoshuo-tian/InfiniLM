@@ -1,0 +1,22 @@
+[
+  {
+    "file": "tools/h3_submission/kernel_sources/qknorm/generate.py",
+    "sha256": "7c039683675f00d504d1f07ff9eb6d8f7d422ab3111d5d52752e89bc6dc71f16",
+    "evidence_archive_sha256": "4039ea039f161b4306fae8e60cb8f23c362de02dc362f201d257aab02cb14c5b"
+  },
+  {
+    "file": "tools/h3_submission/kernel_sources/qknorm/expressions.py",
+    "sha256": "5ccc7c283b6a3df7b5f1a8b389a3b362fed4851eaf330d48008fc4b2ca2366ef",
+    "evidence_archive_sha256": "4039ea039f161b4306fae8e60cb8f23c362de02dc362f201d257aab02cb14c5b"
+  },
+  {
+    "file": "tools/h3_submission/kernel_sources/qkrope/generate.py",
+    "sha256": "0f62d1dd393320f489ea2f2cc3b16d91c87693128d90840a1ce5c7ca113eabcb",
+    "evidence_archive_sha256": "5737ce823935f9cd46686bdfe82d51eb095cfbeb4a49cbbc67b2c351573c8c54"
+  },
+  {
+    "file": "tools/h3_submission/kernel_sources/qkrope/expressions.py",
+    "sha256": "bda51872077a04355dd7feb7a6fc99b9f51ede76da3388b65ca959bd141624d2",
+    "evidence_archive_sha256": "5737ce823935f9cd46686bdfe82d51eb095cfbeb4a49cbbc67b2c351573c8c54"
+  }
+]

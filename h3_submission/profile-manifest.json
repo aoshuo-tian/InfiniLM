@@ -1,0 +1,19 @@
+{
+  "h3_run_tp8_768x928_s50.py": "11487015ea458163a6a724cc5ea86e6775320236389a08757007658536d8da22",
+  "h3_tp8_profile.py": "a28ad0f92384cc0c52f320c259dd341dd1da32ba131e067b777e337ae8ece9e2",
+  "profile-sources.zip": "b815bc413c9fcc95f6f40872358b2a55bb61d51632f3ecc2c76f521f8b092d8b",
+  "profile-sources/fl2va_puppy_math_baseline.py": "23a73d5c2dafaa35fbbbd917709aee9dfefd1d5c81e6cee9c62e83470039e386",
+  "profile-sources/frozen-manifest.json": "c19b2e0495a7752ad9a9a60278d800d3b486d9998038768dd14e3508be8d479a",
+  "profile-sources/h3_competition_cache_20261107.py": "16922be71b05e7def11a72330bcaae80e2d2c2ca78582a941c9a797137e27ffa",
+  "profile-sources/h3_competition_checks.py": "f2199f5aafa616e1906ee97f6720420f242dea2560349be5c61befe13926f96e",
+  "profile-sources/h3_competition_single_20261107.py": "9bc32e15baaa7308033b4a8559324b3b775803d70c95d959044eb88e0fe7354b",
+  "profile-sources/h3_native_aligned_20261107.py": "271cb1dee6283bf4b51aa224fcfb93f8629984386984f6c00c8bc3907982a9b3",
+  "profile-sources/h3_native_bridge_fast_20261107.py": "18f2f68f52fe8b7d54b0ccb9977907719149c70acd99c8e5fca4f454d8411e66",
+  "profile-sources/h3_native_bridge_peer_20261107.py": "2f3850c1880759bcf74e1df7f0b8fafcfef433070597f4181d6b7b361a51d5a7",
+  "profile-sources/h3_native_cache_budget.py": "e8471c57bbf84691220019c50b8286f82ab8a2ee1873f6e3581d7f4585525f2d",
+  "profile-sources/h3_official_example.py": "79e062c4e56a8672f64079f1d184d5916c6ce918c14505c96b8bcad34b8a5771",
+  "profile-sources/h3_profile_768x928.py": "aa9b5c3d8d71fb48753ef60f9e252c1e437e0d1a63f5290cabd5f9729a0d1626",
+  "profile-sources/h3_profile_native_20261109.py": "8e3c8653a2cf3fb2db222f0ff82e21708e783df40e2b934eb213fcb7c798b0c1",
+  "profile-sources/h3_profile_reference_20261109.py": "e0045007b0601da38fb81a0b9c4b10e453935cc9d53a8cdaa009bbbc072fa19a",
+  "profile-sources/user-puppy-clear-8dacfbb2.jpg": "8dacfbb2bf2ca5593c8b33222b74e7c265380c8441a41bc09718083fe1ca3fd8"
+}

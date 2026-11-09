@@ -1,0 +1,68 @@
+{
+  "entry": "h3_competition_cache_20261107.py --platform",
+  "default_mode": "plan_only",
+  "prompt": "A dog falls asleep",
+  "generation_requests": 1,
+  "gpus": 8,
+  "platform_seconds": 600,
+  "worker_seconds": 480,
+  "auto_retry": false,
+  "profile_status": "existing_local_comparison_profile_not_officially_confirmed",
+  "new_entry_device_validated": true,
+  "files": [
+    {
+      "file": "h3_native_cache_budget.py",
+      "bytes": 4753,
+      "sha256": "e8471c57bbf84691220019c50b8286f82ab8a2ee1873f6e3581d7f4585525f2d"
+    },
+    {
+      "file": "h3_competition_cache_20261107.py",
+      "bytes": 2064,
+      "sha256": "16922be71b05e7def11a72330bcaae80e2d2c2ca78582a941c9a797137e27ffa"
+    },
+    {
+      "file": "h3_competition_single_20261107.py",
+      "bytes": 4401,
+      "sha256": "9bc32e15baaa7308033b4a8559324b3b775803d70c95d959044eb88e0fe7354b"
+    },
+    {
+      "file": "h3_competition_checks.py",
+      "bytes": 11429,
+      "sha256": "f2199f5aafa616e1906ee97f6720420f242dea2560349be5c61befe13926f96e"
+    },
+    {
+      "file": "h3_native_bridge_fast_20261107.py",
+      "bytes": 3892,
+      "sha256": "18f2f68f52fe8b7d54b0ccb9977907719149c70acd99c8e5fca4f454d8411e66"
+    },
+    {
+      "file": "h3_native_bridge_peer_20261107.py",
+      "bytes": 3548,
+      "sha256": "2f3850c1880759bcf74e1df7f0b8fafcfef433070597f4181d6b7b361a51d5a7"
+    },
+    {
+      "file": "h3_native_aligned_20261107.py",
+      "bytes": 11313,
+      "sha256": "271cb1dee6283bf4b51aa224fcfb93f8629984386984f6c00c8bc3907982a9b3"
+    },
+    {
+      "file": "h3_official_example.py",
+      "bytes": 14793,
+      "sha256": "79e062c4e56a8672f64079f1d184d5916c6ce918c14505c96b8bcad34b8a5771"
+    },
+    {
+      "file": "fl2va_puppy_math_baseline.py",
+      "bytes": 17316,
+      "sha256": "23a73d5c2dafaa35fbbbd917709aee9dfefd1d5c81e6cee9c62e83470039e386"
+    },
+    {
+      "file": "user-puppy-clear-8dacfbb2.jpg",
+      "bytes": 138114,
+      "sha256": "8dacfbb2bf2ca5593c8b33222b74e7c265380c8441a41bc09718083fe1ca3fd8"
+    }
+  ],
+  "candidate": "growable_conditioner_static_kv",
+  "validation_notes": "Exit 0, released, 124 decoded frames and audio exact to stable native baseline. Memory allocation reduction demonstrated; speedup and official score not established.",
+  "validation_scope": "Current 228-token fixed-input full-video regression; long-input device growth untested",
+  "validation_job": "50b85c6ec38944328ec389d1a739e6a9"
+}
