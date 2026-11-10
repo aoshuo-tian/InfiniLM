@@ -133,3 +133,10 @@ python InfiniLM/tools/h3_submission/run_rebuilt.py \
 在平台不能直接获取 GitHub 时，`make_source_bundle.py` 可以从已提交且干净的两套 checkout 制作传输包，记录每项源码、子模块 commit 和 SHA。`build_and_pack.py` 在共享 CPU 的独立临时目录执行准备、依赖、框架、CCL 四阶段，保存日志和新构建产物身份。`restore_rebuilt.py` 只接受该源码包对应的新产物，不接受历史 runtime 代替；迁移后再由运行入口验证实际加载。此方式解决传输与临时目录归档限制，不构成跳过编译或设备验证。
 
 以上为可审查的复现候选。仍需记录本轮实际编译、视频、原 compare 输出后，才能把结果填入阶段报告的完整命令栏。
+
+
+### 共享 CPU 首次执行结果（2026-11-10）
+
+公开源码包身份和 prepare 阶段已实际通过；依赖安装尚未通过，框架编译尚未进入。首次 pip 的可选系统信息探测读取 `/etc/debian_version` 被权限拒绝；只省略 HTTP User-Agent 的系统分布信息后，已能获取多个包元数据，但平台代理出现 502/握手超时，Accelerate 索引未成功返回。不能把网络错误认定为版本不存在。无新增 GPU 作业。
+
+新增离线候选：`install_dependencies.py --wheelhouse /path/to/wheels` 使用 `--no-index`，保留海光 Torch/NumPy 约束。`build_and_pack.py` 检测同目录的 `reviewer-offline-wheels.tar.gz` 与 `reviewer-offline-wheels.sha256`，验证归档及全部 wheel SHA 后使用；为控制项目归档大小，将输入 wheel 归档移到本轮临时构建根目录（原平台项目版本不变）。离线候选已主机检查，尚待目标安装/构建。未增加或替换模型计算算子。

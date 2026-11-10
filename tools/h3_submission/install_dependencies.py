@@ -14,10 +14,20 @@ import sys
 VISION_SHA = '51fe8d72ddcc88a50ff27c50dd4987d82fba8b0dfd591898ee1f60e2902d18d1'
 
 
+def pip_command(python):
+    # Some managed nodes disallow /etc/debian_version. Omit optional OS metadata
+    # from the HTTP User-Agent; keep pip's resolver, TLS and installation intact.
+    bootstrap = ('import pip,runpy;import pip._internal.network.session as session;'
+                 'session.user_agent=lambda:"pip/"+pip.__version__;'
+                 'runpy.run_module("pip",run_name="__main__")')
+    return [str(python), '-c', bootstrap]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--work', type=Path, required=True)
     parser.add_argument('--torchvision-wheel', type=Path)
+    parser.add_argument('--wheelhouse', type=Path, default=os.environ.get('H3_REVIEW_WHEELHOUSE'))
     parser.add_argument('--plan', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
@@ -49,8 +59,10 @@ print(json.dumps(dict(prefix=sys.prefix,torch=m.version("torch"),numpy=m.version
     env.update(PIP_REQUIRE_VIRTUALENV='true', PIP_DISABLE_PIP_VERSION_CHECK='1',
                PIP_NO_CACHE_DIR='1', PIP_CACHE_DIR=str(work / 'cache/pip'))
     report = work / ('dependency-resolution.json' if args.dry_run else 'dependency-install.json')
-    command = [str(py), '-m', 'pip', 'install', '--only-binary=:all:',
-               '--index-url', 'https://pypi.org/simple', '--constraint', str(constraints),
+    source = (['--no-index', '--find-links', str(args.wheelhouse)] if args.wheelhouse
+              else ['--index-url', 'https://pypi.org/simple'])
+    command = [*pip_command(py), 'install', '--only-binary=:all:', *source,
+               '--constraint', str(constraints),
                '--report', str(report), '-r', str(requirements)]
     if args.dry_run:
         command.append('--dry-run')
@@ -58,10 +70,12 @@ print(json.dumps(dict(prefix=sys.prefix,torch=m.version("torch"),numpy=m.version
         subprocess.run(command, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
     if not args.dry_run:
         wheel = args.torchvision_wheel
+        if wheel is None and args.wheelhouse:
+            wheel = args.wheelhouse / 'torchvision-0.24.0+cpu-cp311-cp311-manylinux_2_28_x86_64.whl'
         if wheel is None:
             download = work / 'external-wheels'
             download.mkdir(exist_ok=True)
-            subprocess.run([str(py), '-m', 'pip', 'download', '--no-deps', '--only-binary=:all:',
+            subprocess.run([*pip_command(py), 'download', '--no-deps', '--only-binary=:all:',
                 '--index-url', 'https://download.pytorch.org/whl/cpu', '--dest', str(download),
                 'torchvision==0.24.0+cpu'], env=env, check=True)
             wheels = list(download.glob('torchvision-0.24.0+cpu-cp311-cp311-manylinux_2_28_x86_64.whl'))
@@ -70,9 +84,9 @@ print(json.dumps(dict(prefix=sys.prefix,torch=m.version("torch"),numpy=m.version
             wheel = wheels[0]
         if hashlib.sha256(wheel.read_bytes()).hexdigest() != VISION_SHA:
             raise RuntimeError('Recorded torchvision CPU wheel SHA mismatch')
-        subprocess.run([str(py), '-m', 'pip', 'install', '--no-deps', str(wheel)], env=env, check=True)
+        subprocess.run([*pip_command(py), 'install', '--no-deps', str(wheel)], env=env, check=True)
         with (work / 'requirements-private-resolved.txt').open('w') as stream:
-            subprocess.run([str(py), '-m', 'pip', 'freeze', '--local'], stdout=stream, check=True)
+            subprocess.run([*pip_command(py), 'freeze', '--local'], stdout=stream, check=True)
     after = json.loads(subprocess.check_output([str(py), '-c', probe], text=True))
     if after != before:
         raise RuntimeError('System Torch/NumPy identities changed')

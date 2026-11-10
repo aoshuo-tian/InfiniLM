@@ -68,6 +68,37 @@ def main():
             if seen != set(manifest['files']):
                 raise ValueError('Incomplete source bundle')
         report['source_commits'] = manifest['commits']
+        # Optional offline wheels are separately hash-pinned external assets.
+        # Move the archive out of the project after verification so saving the
+        # resulting runtime does not also archive a duplicate dependency bundle.
+        wheels = Path('reviewer-offline-wheels.tar.gz')
+        if wheels.is_file():
+            wheel_sha = Path('reviewer-offline-wheels.sha256').read_text().split()[0]
+            if sha(wheels) != wheel_sha:
+                raise ValueError('Offline dependency archive identity mismatch')
+            wheelhouse = root / 'wheelhouse'
+            wheelhouse.mkdir()
+            with tarfile.open(wheels) as archive:
+                wheel_manifest = json.load(archive.extractfile('wheel-manifest.json'))
+                seen = set()
+                for member in archive:
+                    if member.name == 'wheel-manifest.json':
+                        continue
+                    if not member.isfile() or Path(member.name).name != member.name:
+                        raise ValueError('Unsafe wheel archive member')
+                    data = archive.extractfile(member).read()
+                    if hashlib.sha256(data).hexdigest() != wheel_manifest['files'].get(member.name):
+                        raise ValueError('Offline wheel identity mismatch')
+                    if member.name in seen:
+                        raise ValueError('Duplicate wheel member')
+                    seen.add(member.name)
+                    (wheelhouse / member.name).write_bytes(data)
+                if seen != set(wheel_manifest['files']):
+                    raise ValueError('Incomplete offline dependencies')
+            import shutil
+            shutil.move(str(wheels), str(root / wheels.name))
+            os.environ['H3_REVIEW_WHEELHOUSE'] = str(wheelhouse)
+            report['offline_dependencies_sha256'] = wheel_sha
         lm, core = source / 'repos/InfiniLM', source / 'repos/InfiniCore'
         scripts = lm / 'tools/h3_submission'
         work = root / 'build'
