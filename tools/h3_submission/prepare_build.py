@@ -107,6 +107,8 @@ def main():
         H3_REVIEW_PYTHON_LIBDIR=sysconfig.get_config_var('LIBDIR'),
         H3_REVIEW_PYTHON_LINK='python' + sysconfig.get_python_version(),
         H3_REVIEW_OPENMP_RUNTIME=str(gomp), LD_PRELOAD=str(gomp),
+        CPLUS_INCLUDE_PATH=str(work / 'tooling/openmp/include'),
+        C_INCLUDE_PATH=str(work / 'tooling/openmp/include'),
         NINETOOTHED_CACHE_DIR=str(work / 'cache/nine'),
         TRITON_CACHE_DIR=str(work / 'cache/triton'),
         PYTHONPATH=str(work / 'runtime/python'))

@@ -147,3 +147,8 @@ python InfiniLM/tools/h3_submission/run_rebuilt.py \
 离线安装还遇到平台拒绝读取 `/etc/mime.types`；仅让安装子进程使用 Python 内置 MIME 表后，实际得到 `DEPENDENCY_INSTALL_PASS`，且系统 Torch/NumPy 身份检查通过。修正不读取受保护的文件、不修改系统权限。QK host 包装与 Core 配置也已通过，Core 主体在额外的 600 秒续跑预算到期时尚未完成，不能认定编译器失败或清洁构建已通过。该临时目录到期后已确认不可恢复。
 
 历史成功记录中 Core 主体约 830–886 秒，另有 Python 扩展约 53–76 秒、LM 约 150–228 秒，因此下一轮直接使用完整构建 driver 的 1500 秒预算，不使用这次的 600 秒辅助续跑脚本。原失败及补充诊断分别保留，未生成新视频或新增 GPU 作业。
+
+
+### OpenMP搜索路径补充（2026-11-10）
+
+用户新执行409183d源码版本后，prepare与离线dependencies均退出0；框架阶段在354.67秒明确退出1，首个错误为Clang编译common_cpu.cc时 `omp.h` 找不到。头文件已在带许可证的tooling/openmp/include中，历史成功环境额外导出了CPLUS_INCLUDE_PATH和C_INCLUDE_PATH；新准备脚本遗漏这两项。现已补齐；同一目标Clang对包含omp.h的微型源文件做语法检查退出0、无stderr。该检查只证明头文件路径修正有效，完整框架/CCL/视频/比较尚未通过。
