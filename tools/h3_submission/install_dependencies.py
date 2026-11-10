@@ -17,7 +17,8 @@ VISION_SHA = '51fe8d72ddcc88a50ff27c50dd4987d82fba8b0dfd591898ee1f60e2902d18d1'
 def pip_command(python):
     # Some managed nodes disallow /etc/debian_version. Omit optional OS metadata
     # from the HTTP User-Agent; keep pip's resolver, TLS and installation intact.
-    bootstrap = ('import pip,runpy;import pip._internal.network.session as session;'
+    bootstrap = ('import mimetypes;mimetypes.knownfiles=[];mimetypes.init([]);'
+                 'import pip,runpy;import pip._internal.network.session as session;'
                  'session.user_agent=lambda:"pip/"+pip.__version__;'
                  'runpy.run_module("pip",run_name="__main__")')
     return [str(python), '-c', bootstrap]

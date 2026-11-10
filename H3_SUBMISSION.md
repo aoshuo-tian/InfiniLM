@@ -140,3 +140,10 @@ python InfiniLM/tools/h3_submission/run_rebuilt.py \
 公开源码包身份和 prepare 阶段已实际通过；依赖安装尚未通过，框架编译尚未进入。首次 pip 的可选系统信息探测读取 `/etc/debian_version` 被权限拒绝；只省略 HTTP User-Agent 的系统分布信息后，已能获取多个包元数据，但平台代理出现 502/握手超时，Accelerate 索引未成功返回。不能把网络错误认定为版本不存在。无新增 GPU 作业。
 
 新增离线候选：`install_dependencies.py --wheelhouse /path/to/wheels` 使用 `--no-index`，保留海光 Torch/NumPy 约束。`build_and_pack.py` 检测同目录的 `reviewer-offline-wheels.tar.gz` 与 `reviewer-offline-wheels.sha256`，验证归档及全部 wheel SHA 后使用；为控制项目归档大小，将输入 wheel 归档移到本轮临时构建根目录（原平台项目版本不变）。离线候选已主机检查，尚待目标安装/构建。未增加或替换模型计算算子。
+
+
+### 离线目标执行补充
+
+离线安装还遇到平台拒绝读取 `/etc/mime.types`；仅让安装子进程使用 Python 内置 MIME 表后，实际得到 `DEPENDENCY_INSTALL_PASS`，且系统 Torch/NumPy 身份检查通过。修正不读取受保护的文件、不修改系统权限。QK host 包装与 Core 配置也已通过，Core 主体在额外的 600 秒续跑预算到期时尚未完成，不能认定编译器失败或清洁构建已通过。该临时目录到期后已确认不可恢复。
+
+历史成功记录中 Core 主体约 830–886 秒，另有 Python 扩展约 53–76 秒、LM 约 150–228 秒，因此下一轮直接使用完整构建 driver 的 1500 秒预算，不使用这次的 600 秒辅助续跑脚本。原失败及补充诊断分别保留，未生成新视频或新增 GPU 作业。
