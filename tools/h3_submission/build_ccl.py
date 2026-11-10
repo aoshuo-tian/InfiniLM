@@ -11,6 +11,7 @@ import subprocess
 import sys
 import hashlib
 import time
+from build_monitor import run_logged, write_json
 
 
 def main():
@@ -47,12 +48,13 @@ def main():
                     (core / 'build/.objs' / name / 'linux/x86_64/release' /
                      source.relative_to(core).parent).mkdir(parents=True, exist_ok=True)
         for index, command in enumerate(commands):
-            started = time.monotonic()
-            with (work / 'logs' / ('ccl-source-build-' + str(index) + '.log')).open('w') as log:
-                result = subprocess.run(command, cwd=core, stdout=log, stderr=subprocess.STDOUT)
-            record['commands'].append(dict(command=command, exit_code=result.returncode,
-                                            seconds=time.monotonic() - started))
-            if result.returncode:
+            def progress(value):
+                record['current'] = value
+                write_json(target, record)
+            result = run_logged(command, work / 'logs' / ('ccl-source-build-' + str(index) + '.log'),
+                                cwd=core, on_progress=progress)
+            record['commands'].append(result)
+            if result['exit_code']:
                 raise RuntimeError('CCL build stage failed; see the corresponding log')
         lib = Path(state['lib']) / 'libinfiniccl.so'
         symbols = subprocess.check_output(['nm', '-D', str(lib)], text=True)
@@ -63,7 +65,7 @@ def main():
         record['passed'] = True
     finally:
         record['complete'] = True
-        target.write_text(json.dumps(record, indent=2))
+        write_json(target, record)
     print('CCL source build completed; device execution is still a separate validation step.')
 
 

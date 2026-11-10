@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--wheelhouse', type=Path, default=os.environ.get('H3_REVIEW_WHEELHOUSE'))
     parser.add_argument('--plan', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--check-only', action='store_true', help='Verify the existing venv base; do not install')
     args = parser.parse_args()
     work = args.work.resolve()
     requirements = Path(__file__).with_name('requirements-reviewer.txt')
@@ -54,6 +55,12 @@ print(json.dumps(dict(prefix=sys.prefix,torch=m.version("torch"),numpy=m.version
         parser.error('Refusing to install outside the new private venv')
     if before['torch'] != '2.9.0+das.opt1.dtk2604':
         parser.error('The recorded vendor Torch is required; it will not be installed/replaced')
+    if args.check_only:
+        saved = json.loads((work / 'dependency-base-identities.json').read_text())
+        if before != saved or not (work / 'dependency-install.json').is_file():
+            parser.error('Restored private environment/base identities differ')
+        print('DEPENDENCY_BASE_REUSE_VERIFIED', flush=True)
+        return
     constraints = work / 'reviewer-base-constraints.txt'
     constraints.write_text('torch==' + before['torch'] + '\nnumpy==' + before['numpy'] + '\n')
     env = os.environ.copy()

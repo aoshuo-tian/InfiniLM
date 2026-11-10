@@ -152,3 +152,35 @@ python InfiniLM/tools/h3_submission/run_rebuilt.py \
 ### OpenMP搜索路径补充（2026-11-10）
 
 用户新执行409183d源码版本后，prepare与离线dependencies均退出0；框架阶段在354.67秒明确退出1，首个错误为Clang编译common_cpu.cc时 `omp.h` 找不到。头文件已在带许可证的tooling/openmp/include中，历史成功环境额外导出了CPLUS_INCLUDE_PATH和C_INCLUDE_PATH；新准备脚本遗漏这两项。现已补齐；同一目标Clang对包含omp.h的微型源文件做语法检查退出0、无stderr。该检查只证明头文件路径修正有效，完整框架/CCL/视频/比较尚未通过。
+
+### 构建进度、超时记录及检查点候选（2026-11-10）
+
+随后318f7c2版本的完整框架阶段用尽剩余1467.54秒，总程序预算1500秒；未确认Core主体完成。旧驱动仅在整个子进程返回后打印阶段，超时分支又跳过汇总，不能凭两行输出判断进程正常或卡死。原CPU已到期；平台后来保存了项目阶段日志，未确认项目外编译对象归档。
+
+新候选每15秒输出当前阶段、耗时、日志字节数和最后一行；项目中的 `reviewer-live.log` 和 JSON 定期更新。超时会终止该构建进程组，记录 `REVIEWER_STAGE framework 124 timed_out`，并保留失败状态。它不延长平台租期，也不保证编译会在固定时限内完成。
+
+可选 `--checkpoint-output reviewer-checkpoint.tar.gz` 在停止时导出独立检查点，默认上限96 MiB，并预留120秒保存时间；超限明确报告失败，不发布不完整归档、不覆盖上次完整检查点。检查点包含来源身份、源码、对象、配置和日志，不是成功运行产物。为控制空间，不包含私有venv；跨会话恢复需要原已校验离线wheel归档，重新建立私有环境，保留系统Torch/NumPy。
+
+```bash
+python InfiniLM/tools/h3_submission/build_and_pack.py \
+  --source-bundle "$SOURCE_BUNDLE" --source-sha256 "$SOURCE_SHA256" \
+  --output reviewer-runtime.tar.gz --seconds 1650 \
+  --checkpoint-output reviewer-checkpoint.tar.gz
+
+# 同一仍存在的工作目录续编；来源及已完成输出必须核验一致。
+python InfiniLM/tools/h3_submission/build_and_pack.py \
+  --source-bundle "$SOURCE_BUNDLE" --source-sha256 "$SOURCE_SHA256" \
+  --output reviewer-runtime.tar.gz --seconds 1650 \
+  --resume-root "$RECORDED_ROOT" --checkpoint-output reviewer-checkpoint-next.tar.gz
+
+# 跨会话恢复；当前目录仍须提供原来的离线wheel归档与SHA文件。
+python InfiniLM/tools/h3_submission/build_and_pack.py \
+  --source-bundle "$SOURCE_BUNDLE" --source-sha256 "$SOURCE_SHA256" \
+  --output reviewer-runtime.tar.gz --seconds 1650 \
+  --checkpoint-from reviewer-checkpoint.tar.gz --checkpoint-sha256 "$CHECKPOINT_SHA256" \
+  --checkpoint-output reviewer-checkpoint-next.tar.gz
+```
+
+续编只复用来源及输出SHA一致的完成阶段；中断的目标交回xmake继续，不把未完成框架标成通过。旧目录没有新的clean-origin记录时拒绝盲目采用。路径、归档成员、压缩后大小与系统Python身份均有检查。主机小型控制测试不等于真实xmake跨会话增量复用、真实检查点尺寸或完整编译通过；这些仍待目标实测。Python3.11的流式tar不支持直接传入compresslevel，已改用显式gzip包装；不依赖本机Python3.14的新增行为。
+
+目标控制验证补充：在实际共享CPU的Linux/Python3.11环境执行12项小型控制测试，全部通过，耗时5.713秒；涵盖真实进程组终止、原驱动的模拟框架超时报告、检查点保存/恢复、来源及文件SHA拒绝、完成步骤复用、大小限制与跨文件系统发布。模拟过程中发现scratch与项目文件区不能直接rename，现改为目标目录临时副本校验后原子替换；旧完整文件保留到替换成功。此结果只验收构建控制机制，不是Core/LM真实编译、真实检查点容量、完整视频或评分通过。原生成计算未修改。
