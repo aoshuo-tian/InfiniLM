@@ -28,13 +28,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--core', type=Path, required=True)
     parser.add_argument('--work', type=Path, required=True, help='New, nonexistent directory')
-    parser.add_argument('--xmake', default='xmake', help='Use xmake 3.0.5')
+    parser.add_argument('--xmake', default='bundled', help='bundled verified SDK, or explicit xmake 3.0.5')
     parser.add_argument('--plan', action='store_true')
     args = parser.parse_args()
     lm = Path(__file__).resolve().parents[2]
     core, work = args.core.resolve(), args.work.resolve()
     if not (core / 'src/infinicore').is_dir():
         parser.error('--core is not an InfiniCore checkout')
+    if work.is_relative_to(core) or work.is_relative_to(lm):
+        parser.error('--work must be outside both source checkouts')
     plan = dict(core=str(core), lm=str(lm), new_work=str(work), xmake=args.xmake,
                 architecture='gfx936', install_dependencies=False, allocate_gpu=False,
                 reuse_embedded_device_code=True)
@@ -52,14 +54,25 @@ def main():
             parser.error('Initialize the documented submodules first: ' + str(header))
     if not Path('/opt/dtk/cuda/cuda/bin/nvcc').is_file():
         parser.error('Recorded DTK 26.04 CUDA compatibility toolchain is required')
-    xmake = shutil.which(args.xmake)
-    if not xmake:
-        parser.error('xmake 3.0.5 is required')
+    sdk = lm / 'tools/h3_submission/support/tooling/xmake'
+    if args.xmake == 'bundled':
+        import hashlib
+        identity = json.loads((sdk.parent / 'xmake-sdk-manifest.json').read_text())
+        for rel, digest in identity['files'].items():
+            if hashlib.sha256((sdk / rel).read_bytes()).hexdigest() != digest:
+                parser.error('Bundled xmake identity changed: ' + rel)
+        xmake = str(work / 'tooling/xmake/bin/xmake')
+    else:
+        xmake = shutil.which(args.xmake)
+        if not xmake:
+            parser.error('xmake 3.0.5 is required')
     work.mkdir(parents=True)
     for name, source in (('InfiniCore', core), ('InfiniLM', lm)):
         shutil.copytree(source, work / 'sources' / name, ignore=ignored)
     for name in ('dependencies', 'tooling'):
         shutil.copytree(lm / 'tools/h3_submission/support' / name, work / name)
+    if args.xmake == 'bundled':
+        (work / 'tooling/xmake/bin/xmake').chmod(0o755)
     for directory in ('logs', 'install', 'runtime/python', 'cache/nine', 'cache/triton'):
         (work / directory).mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, '-m', 'venv', '--system-site-packages',
@@ -97,6 +110,9 @@ def main():
         NINETOOTHED_CACHE_DIR=str(work / 'cache/nine'),
         TRITON_CACHE_DIR=str(work / 'cache/triton'),
         PYTHONPATH=str(work / 'runtime/python'))
+    if args.xmake == 'bundled':
+        env.update(XMAKE_PROGRAM_DIR=str(work / 'tooling/xmake/share/xmake'),
+                   XMAKE_GLOBALDIR=str(work / 'tooling/xmake-global'))
     env['LD_LIBRARY_PATH'] = ':'.join([str(lib), '/opt/dtk/dcc/lib', '/opt/dtk/dcc/gcvm/lib',
         '/opt/dtk/lib', '/opt/dtk/hip/lib', '/opt/dtk/cuda/cuda/lib64',
         '/opt/dtk/.hyhal/rocm_smi/lib', '/opt/dtk/lib64', '/opt/dtk/llvm/lib',

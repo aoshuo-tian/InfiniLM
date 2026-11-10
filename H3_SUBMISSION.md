@@ -71,6 +71,7 @@ git -C InfiniLM submodule update --init third_party/spdlog third_party/json
 # 新工作目录必须尚不存在。先查看计划，准备阶段也不会申请 GPU。
 python InfiniLM/tools/h3_submission/prepare_build.py --core InfiniCore --work "$PWD/h3-build" --plan
 python InfiniLM/tools/h3_submission/prepare_build.py --core InfiniCore --work "$PWD/h3-build"
+python InfiniLM/tools/h3_submission/install_dependencies.py --work "$PWD/h3-build"
 source h3-build/setup.sh
 python InfiniLM/tools/h3_submission/build_framework.py
 
@@ -81,7 +82,7 @@ python InfiniLM/tools/h3_submission/build_ccl.py
 
 构建会在新目录编译主机框架、Python 扩展、QK 归一化等 AOT 包装。已有 gfx936 设备代码以生成 C/C++ 中的嵌入数组保留，**本步骤复用它们，不重新生成全部设备内核，也不要求仅为本构建安装 Triton**。`build/ninetoothed*` 在此版本中包含生成源码，不能把这些目录当成普通输出全部删掉。
 
-证据边界：`build_framework.py` 保留实际运行包中的历史构建脚本；该基础构建当时 `--ccl=n`，随后实际测试用独立 CCL-on 库覆盖。`prepare_build.py` 是为公开仓库新整理的目录准备脚本，`build_ccl.py` 是依据当前 xmake 目标整理的补建方案，**本轮未在 DCU 执行这两个新脚本，未取回历史 CCL-on 精确命令，也未声称这套新整理流程已干净重建成功**。源文件及原视频运行证据与这个尚待目标环境验证的交付流程分开记录。
+证据边界：`build_framework.py` 保留实际运行包中的历史构建脚本，基础构建使用 `--ccl=n`。2026-11-10 已取回历史成功的 CCL-on 构建记录和测试脚本，确认仅将同组配置的 `--ccl=n` 改为 `--ccl=y`，再构建 `infiniccl` 目标。其库 SHA 与已测试运行包一致。`h3_submission/ccl-build-provenance.json` 保留命令及原件身份，补建脚本会核对全部配置。**这些是历史证据；新整理的构建、依赖准备、产物迁移及生成入口仍待目标环境实跑，不能当作已完成清洁复现。**
 
 运行视频前仍需实际安装/导入相容的私有 Python 依赖。已用环境包括 Transformers 5.10.0、Diffusers 0.40.0、Accelerate 1.15.0、PyAV 18.1.0、torchvision 0.24.0+cpu、janus 2.0.0、xxhash 3.2.0，NumPy 和海光 Torch 沿用系统版本。这不是让所有环境盲目重装的列表；先检查实际推理解释器。
 
@@ -107,3 +108,28 @@ python examples/minimax_h3_compare.py --tasks fl2va \
 后续 VAE 替换、视觉 RoPE/MHA 候选、分片 GC 等其他实验没有合并到这个选定运行版本。公开整理没有额外占用平台卡时；此提交不新增画质修复、正式评分通过或端到端加速结论。
 
 配套 Core 精确 commit：`70c7049340e18d5c60f6f06f6dc213f4a1d7bf39`；机器可读固定信息见 `h3_submission/dependencies.json`。另附 `tools/h3_submission/kernel_sources/` 中的 QK NineToothed 图表达与历史生成器，从已校验的局部验证归档取出；QK+RoPE 仍关闭。这些是源码来源补充，不宣称本轮重新生成设备代码或重放历史调优。
+
+
+## 2026-11-10 独立评审复现入口（待目标验证）
+
+新入口 `tools/h3_submission/run_rebuilt.py` 只接受成功的新建框架及 CCL 构建记录。运行前实际核查两个 Python 包和六类已加载动态库的路径、SHA，拒绝混入旧框架库；不会调用历史平台入口恢复旧 runtime。无参数或 `--plan` 只核对计划，不导入 Torch 或加载模型。
+
+与冻结 TP8 worker 相比，只把输入图片、Flash 库/描述文件和输出目录改为显式参数；生成计算、TP8、缓存策略及原 VAE 精度/cast 保持不变。`host_checks.py` 包含反向恢复后的完整 worker AST 比较。
+
+```bash
+# 只在已完成前述新建构建、并 source setup.sh 后执行。
+# MODEL、FLASH_SO 由评审环境提供；库 SHA 应来自厂商包校验记录。
+python InfiniLM/tools/h3_submission/run_rebuilt.py --plan
+python InfiniLM/tools/h3_submission/run_rebuilt.py \
+  --work "$PWD/h3-build" --model "$MODEL" --output "$PWD/h3-new-video" \
+  --first-frame InfiniLM/examples/h3_submission/tp8_20261109/profile-sources/user-puppy-clear-8dacfbb2.jpg \
+  --flash-so "$FLASH_SO" --flash-sha256 "$FLASH_SHA256"
+```
+
+构建工具：仓库附带已核对身份的 xmake 3.0.5 SDK、Apache 2.0 许可证及逐文件 SHA 清单，仅作为构建工具使用。它不是预编译的 InfiniCore/InfiniLM。准备脚本检查 SDK 身份后复制到独立工作目录。框架及 Python 扩展需要重新编译；NineToothed 生成源码中的 gfx936 设备字节码仍复用，不能称作重新生成了全部设备代码。
+
+依赖脚本只安装到新建私有 venv，保留系统海光 Torch 和 NumPy 的版本与位置；从公开 PyPI 获取推理依赖，单独校验 torchvision CPU wheel。CPU 评分依赖另列在 `requirements-comparison.txt`，无需把科学计算包全部打进 GPU 运行产物。
+
+在平台不能直接获取 GitHub 时，`make_source_bundle.py` 可以从已提交且干净的两套 checkout 制作传输包，记录每项源码、子模块 commit 和 SHA。`build_and_pack.py` 在共享 CPU 的独立临时目录执行准备、依赖、框架、CCL 四阶段，保存日志和新构建产物身份。`restore_rebuilt.py` 只接受该源码包对应的新产物，不接受历史 runtime 代替；迁移后再由运行入口验证实际加载。此方式解决传输与临时目录归档限制，不构成跳过编译或设备验证。
+
+以上为可审查的复现候选。仍需记录本轮实际编译、视频、原 compare 输出后，才能把结果填入阶段报告的完整命令栏。
