@@ -185,8 +185,3 @@
       ```bash
       python examples/bench.py --device nvidia --model=<model-path> --enable-paged-attn [--attn=default | --attn=flash-attn]
       ```
-
-
-## MiniMax-H3 delivery
-
-See [H3_SUBMISSION.md](H3_SUBMISSION.md) for the selected gfx936 sources, matching repositories, tested TP8 profile, and validation limits.

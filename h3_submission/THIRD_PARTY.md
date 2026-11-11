@@ -8,4 +8,4 @@ The matching InfiniLM repository supplies selected build headers:
 - pybind11 3.1.0 headers: `support/tooling/pybind11/LICENSE`, obtained from the upstream v3.1.0 tag.
 - GCC OpenMP header: `support/tooling/openmp/COPYRIGHT`, original notices in `include/omp.h` retained.
 
-Official vendor PyTorch, DTK/RCCL, FlashAttention binary, model weights and Python dependency archives are external requirements and are not redistributed in this source commit. See the matching H3_SUBMISSION.md for versions and scope.
+Official vendor PyTorch, DTK/RCCL, FlashAttention binary, model weights and Python dependency archives are external requirements and are not redistributed in this source commit. See [REVIEWER_COMMANDS_20261111.md](REVIEWER_COMMANDS_20261111.md) for versions and scope.
