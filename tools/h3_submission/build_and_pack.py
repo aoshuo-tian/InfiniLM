@@ -187,7 +187,7 @@ def main():
         selected = {}
 
         def add(path):
-            if path.is_file() and path.suffix != '.pyc' and '__pycache__' not in path.parts:
+            if path.is_file() and not path.is_symlink() and path.suffix != '.pyc' and '__pycache__' not in path.parts:
                 selected[path.relative_to(work).as_posix()] = path
 
         for rel in ('state.json', 'setup.sh', 'build-status.json', 'ccl-build-status.json',

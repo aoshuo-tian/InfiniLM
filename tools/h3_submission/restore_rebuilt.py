@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tarfile
+from runtime_links import connect
 
 
 def main():
@@ -51,8 +52,7 @@ def main():
     subprocess.run([sys.executable, '-m', 'venv', '--system-site-packages', '--without-pip',
                     str(work / 'venv')], check=True)
     state = json.loads((work / 'state.json').read_text())
-    for name, folder in (('infinicore', state['lib']), ('infinilm', str(Path(state['extension']).parent))):
-        (work / 'runtime/python' / name / 'lib').symlink_to(folder, target_is_directory=True)
+    connect(work, state)
     print('REBUILT_ARTIFACT_RESTORED', work, flush=True)
 
 

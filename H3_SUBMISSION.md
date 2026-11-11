@@ -93,7 +93,7 @@ python InfiniLM/tools/h3_submission/build_ccl.py
 评分需要可导入 PyAV、scikit-image 及其 SciPy 依赖的 CPU Python；不需要重新生成视频：
 
 ```bash
-python examples/minimax_h3_compare.py --tasks fl2va \
+python examples/minimax_h3_compare.py --model-path "$MODEL" --tasks fl2va \
   --reference-fl2va-video /path/to/reference-768x928-s50.mp4 \
   --infinilm-fl2va-video /path/to/native-tp8-768x928-s50.mp4 \
   --output-dir /path/to/compare-output
@@ -184,3 +184,13 @@ python InfiniLM/tools/h3_submission/build_and_pack.py \
 续编只复用来源及输出SHA一致的完成阶段；中断的目标交回xmake继续，不把未完成框架标成通过。旧目录没有新的clean-origin记录时拒绝盲目采用。路径、归档成员、压缩后大小与系统Python身份均有检查。主机小型控制测试不等于真实xmake跨会话增量复用、真实检查点尺寸或完整编译通过；这些仍待目标实测。Python3.11的流式tar不支持直接传入compresslevel，已改用显式gzip包装；不依赖本机Python3.14的新增行为。
 
 目标控制验证补充：在实际共享CPU的Linux/Python3.11环境执行12项小型控制测试，全部通过，耗时5.713秒；涵盖真实进程组终止、原驱动的模拟框架超时报告、检查点保存/恢复、来源及文件SHA拒绝、完成步骤复用、大小限制与跨文件系统发布。模拟过程中发现scratch与项目文件区不能直接rename，现改为目标目录临时副本校验后原子替换；旧完整文件保留到替换成功。此结果只验收构建控制机制，不是Core/LM真实编译、真实检查点容量、完整视频或评分通过。原生成计算未修改。
+
+## 2026-11-11 公开交付更新
+
+当前构建与运行说明见 `h3_submission/REVIEWER_COMMANDS_20261111.md`，显式分阶段命令入口为 `tools/h3_submission/reviewer_reproduce.sh`。它保留真实 `infinilm/lib/__init__.py`，在包内建立新扩展的相对链接；共享 CPU 只做原生扩展加载检查，整包导入与通信在 DCU 阶段单独执行。原生和 PyTorch 参照都复用冻结 worker，仅适配外部资产路径；完整 worker AST 反向核对通过。
+
+九齿修改源码已公开于 https://github.com/aoshuo-tian/ninetoothed ，分支 `minima_h3`，commit `bf50f838f303d3bd289237df7c78021ac35ff44e`；该分支名按队伍指定保留。三套代码都应在同一报告中填写链接、分支和完整 commit。代码交付以公开仓库为准，不能用运行压缩包或 AFS 目录替代。
+
+既有修复构建产物在 DCU 作业 `ab614174ec4d4a2e8031b4541b4574bf` 完成整包导入、通信和固定规格视频生成。本次整合交付脚本经过主机检查，但尚未以最终公开 commit 再从零执行全部目标步骤，不能把上述运行记录改称这套最终命令的全新干净复现。Windows 无符号链接权限，该项 Linux 迁移测试会明确跳过。
+
+报告继续采用 `tested-result.json` 中的历史 shared TP8 cache 82.468%，归属原运行包及原视频对；本次本地评分不纳入报告。后续 VAE Attention/SwiGLU/cast 替换和新融合候选仍不属于本交付基线。

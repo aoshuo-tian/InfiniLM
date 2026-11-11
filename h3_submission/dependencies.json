@@ -3,5 +3,11 @@
     "repository": "https://github.com/aoshuo-tian/InfiniCore",
     "branch": "minimax-h3",
     "commit": "70c7049340e18d5c60f6f06f6dc213f4a1d7bf39"
+  },
+  "NineToothed": {
+    "repository": "https://github.com/aoshuo-tian/ninetoothed",
+    "branch": "minima_h3",
+    "commit": "bf50f838f303d3bd289237df7c78021ac35ff44e",
+    "scope": "Preserved modified compiler source; host build reuses embedded gfx936 device code"
   }
 }

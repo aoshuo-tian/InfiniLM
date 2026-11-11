@@ -1,6 +1,7 @@
 from pathlib import Path
 import os,json,subprocess,time,hashlib,traceback,shlex,shutil,argparse
 from build_monitor import run_logged, write_json
+from runtime_links import connect
 w=Path(os.environ['H3_HEAD56_CLEAN_WORK']);s=json.loads((w/'state.json').read_text());c=Path(s['core']);lm=Path(s['lm']);lib=Path(s['lib']);status={};xmake=s['xmake']
 parser=argparse.ArgumentParser();parser.add_argument('--resume-python-binding',action='store_true');parser.add_argument('--resume',action='store_true');parser.add_argument('--verify-completed',action='store_true');args=parser.parse_args()
 binding_resume=args.resume_python_binding
@@ -93,15 +94,12 @@ try:
  precreate_object_dirs(lm,['_infinilm'])
  run('lm-clean-build.log',[xmake,'build','-j','4','-v','_infinilm'],lm)
  exts=list((lm/'build').rglob('_infinilm*.so'));assert len(exts)==1;s['extension']=str(exts[0]);save('state.json',s)
- for name,bindir in [('infinicore',lib),('infinilm',exts[0].parent)]:
-  p=w/'runtime/python'/name/'lib'
-  if args_resume and p.is_symlink():assert p.resolve()==bindir.resolve()
-  else:assert not p.exists();p.symlink_to(bindir,target_is_directory=True)
- run('ordinary-python-import.log',[s['python'],'-c','import infinicore,infinilm,json;from pathlib import Path; p=sorted({l.split()[-1] for l in Path("/proc/self/maps").read_text().splitlines() if any(x in l for x in ["libinfinicore_cpp_api.so","libinfiniop.so","libinfinirt.so","_infinilm."])}); print(json.dumps(dict(core=infinicore.__file__,lm=infinilm.__file__,maps=p)))'])
+ save('runtime-links.json',connect(w,s))
+ run('native-extension-import.log',[s['python'],Path(__file__).with_name('runtime_links.py'),'--verify-native',w])
  counts={name:len(list((p/'build/.objs').rglob('*.o'))) for name,p in [('Core',c),('LM',lm)]};assert counts['Core']>1000 and counts['LM']>100,counts
  text=(w/'logs/core-clean-build.log').read_text();assert 'ENABLE_NINETOOTHED_HYGON_MHA_INNER32' in text and 'h3_long_inner32_f16_m128n32' in text and 'ENABLE_NINETOOTHED_HYGON_MHA_HEAD56' in text and 'h3_flash_attention_large.c.o' in text and 'ninetoothed-dist/h3_dist_' in text
  for p,h in json.loads((w/'protected-before.json').read_text()).items():assert sha(p)==h,p
- save('build-status.json',dict(complete=True,passed=True,status=status,new_object_counts=counts,clean_host_framework=True,resumed=args_resume,reused_embedded_device_code=True,libraries={str(p):sha(p) for p in [*lib.glob('*.so'),exts[0]]}))
+ save('build-status.json',dict(complete=True,passed=True,status=status,new_object_counts=counts,clean_host_framework=True,resumed=args_resume,reused_embedded_device_code=True,full_package_import_validated=False,gpu_execution_validated=False,libraries={str(p):sha(p) for p in [*lib.glob('*.so'),exts[0]]}))
  print('REVIEW_RELEASE_CLEAN_BUILD_PASS',counts,flush=True)
 except Exception:
  save('build-status.json',dict(complete=True,passed=False,status=status,error=traceback.format_exc()));raise

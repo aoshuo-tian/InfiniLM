@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import sys
 import types
+from runtime_links import loaded_objects
 
 IMAGE_SHA = '8dacfbb2bf2ca5593c8b33222b74e7c265380c8441a41bc09718083fe1ca3fd8'
 
@@ -55,7 +56,7 @@ def worker_tree(tree):
     return ast.fix_missing_locations(tree), counts
 
 
-def make_worker():
+def make_worker(backend='native'):
     repo = Path(__file__).resolve().parents[2]
     profile = repo / 'examples/h3_submission/tp8_20261109'
     sources = profile / 'profile-sources'
@@ -63,8 +64,13 @@ def make_worker():
     sys.path.insert(0, str(sources))
     import h3_profile_768x928 as base
     import h3_tp8_profile as tp8
-    function, tree, original_checks = base.build('native', sources / 'reviewer_worker.py')
-    tree, tp8_checks = tp8.tp8_tree(tree)
+    function, tree, original_checks = base.build(backend, sources / 'reviewer_worker.py')
+    if backend == 'native':
+        tree, tp8_checks = tp8.tp8_tree(tree)
+    elif backend == 'reference':
+        tp8_checks = dict(reference_legacy_device_map=True)
+    else:
+        raise ValueError('Unknown backend')
     tree, path_checks = worker_tree(tree)
     cache = types.ModuleType('h3_native_cache_budget')
     cache.__file__ = str(sources / 'h3_native_cache_budget.py')
@@ -98,8 +104,7 @@ def check_loaded_paths(work, state):
             raise RuntimeError('Package came from outside the new build: ' + str(path))
     names = ('libinfinicore_cpp_api.so', 'libinfiniop.so', 'libinfinirt.so',
              'libinfiniccl.so', '_infinicore.', '_infinilm.')
-    maps = sorted({line.split()[-1] for line in Path('/proc/self/maps').read_text().splitlines()
-                   if any(name in line.split()[-1] for name in names)})
+    maps = loaded_objects()
     for name in names:
         matched = [Path(value).resolve() for value in maps if name in Path(value).name]
         if not matched or any(not path.is_relative_to(work) for path in matched):
@@ -117,9 +122,11 @@ def main():
     parser.add_argument('--first-frame', type=Path)
     parser.add_argument('--flash-so', type=Path)
     parser.add_argument('--flash-sha256')
+    parser.add_argument('--backend', choices=('native', 'reference'), default='native')
+    parser.add_argument('--verify-only', action='store_true', help='Check full packages/new libraries on DCU, without loading weights')
     parser.add_argument('--plan', action='store_true')
     args = parser.parse_args()
-    namespace, anchors = make_worker()
+    namespace, anchors = make_worker(args.backend)
     if args.plan or len(sys.argv) == 1:
         print(json.dumps(dict(mode='plan_only', anchors=anchors,
             parameters=namespace['PARAMETERS'], uses_old_runtime_archive=False,
@@ -151,8 +158,17 @@ def main():
     if not args.model.is_dir():
         parser.error('Model directory unavailable')
     output.mkdir(parents=True)
-    loaded = check_loaded_paths(work, state)
+    loaded = (check_loaded_paths(work, state) if args.backend == 'native'
+              else dict(backend='PyTorch legacy reference', native_framework_not_loaded=True))
+    if args.backend == 'native':
+        expected = {**build['libraries'], **ccl['libraries']}
+        for path, digest in loaded['mapped_libraries'].items():
+            if expected.get(str(Path(path).resolve())) != digest:
+                raise RuntimeError('Loaded library differs from this build manifest: ' + path)
     (output / 'loaded-rebuilt-libraries.json').write_text(json.dumps(loaded, indent=2))
+    if args.verify_only:
+        print(json.dumps(dict(passed=True, verification=loaded, model_loaded=False), indent=2))
+        return
     flash = dict(passed=True, flash_so=str(args.flash_so.resolve()),
                  flash_so_sha256=args.flash_sha256,
                  flash_so_bytes=args.flash_so.stat().st_size,
