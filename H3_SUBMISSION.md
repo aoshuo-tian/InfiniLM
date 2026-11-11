@@ -189,7 +189,7 @@ python InfiniLM/tools/h3_submission/build_and_pack.py \
 
 当前构建与运行说明见 `h3_submission/REVIEWER_COMMANDS_20261111.md`，显式分阶段命令入口为 `tools/h3_submission/reviewer_reproduce.sh`。它保留真实 `infinilm/lib/__init__.py`，在包内建立新扩展的相对链接；共享 CPU 只做原生扩展加载检查，整包导入与通信在 DCU 阶段单独执行。原生和 PyTorch 参照都复用冻结 worker，仅适配外部资产路径；完整 worker AST 反向核对通过。
 
-九齿修改源码已公开于 https://github.com/aoshuo-tian/ninetoothed ，分支 `minima_h3`，commit `bf50f838f303d3bd289237df7c78021ac35ff44e`；该分支名按队伍指定保留。三套代码都应在同一报告中填写链接、分支和完整 commit。代码交付以公开仓库为准，不能用运行压缩包或 AFS 目录替代。
+九齿修改源码已公开于 https://github.com/aoshuo-tian/ninetoothed ，分支 `minimax_h3`，commit `bf50f838f303d3bd289237df7c78021ac35ff44e`；分支拼写已按队伍更正，与 InfiniLM 分支一致。三套代码都应在同一报告中填写链接、分支和完整 commit。代码交付以公开仓库为准，不能用运行压缩包或 AFS 目录替代。
 
 既有修复构建产物在 DCU 作业 `ab614174ec4d4a2e8031b4541b4574bf` 完成整包导入、通信和固定规格视频生成。本次整合交付脚本经过主机检查，但尚未以最终公开 commit 再从零执行全部目标步骤，不能把上述运行记录改称这套最终命令的全新干净复现。Windows 无符号链接权限，该项 Linux 迁移测试会明确跳过。
 

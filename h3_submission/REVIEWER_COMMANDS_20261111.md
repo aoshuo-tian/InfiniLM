@@ -1,7 +1,7 @@
 # MiniMax H3 public source reproduction
 
 The submitted repositories are InfiniCore `minimax-h3`, InfiniLM `minimax_h3`,
-and NineToothed `minima_h3`. The report must pin their full commit identities.
+and NineToothed `minimax_h3`. The report must pin their full commit identities.
 The final report is the submission; runtime archives and AFS paths are not
 alternatives to these public source repositories.
 

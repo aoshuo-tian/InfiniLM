@@ -6,7 +6,7 @@
   },
   "NineToothed": {
     "repository": "https://github.com/aoshuo-tian/ninetoothed",
-    "branch": "minima_h3",
+    "branch": "minimax_h3",
     "commit": "bf50f838f303d3bd289237df7c78021ac35ff44e",
     "scope": "Preserved modified compiler source; host build reuses embedded gfx936 device code"
   }
