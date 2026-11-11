@@ -94,6 +94,10 @@ case "$STAGE" in
         ;;
     compare)
         load_build
+        if [[ -e "$RESULTS/compare" || -e "$RESULTS/compare.stdout.log" ]]; then
+            printf '%s\n' 'Comparison output already exists; choose a new H3_OUTPUT_ROOT and explicit input videos.' >&2
+            exit 1
+        fi
         REFERENCE="${H3_REFERENCE_VIDEO:-$RESULTS/reference/reference-768x928-s50.mp4}"
         NATIVE="${H3_NATIVE_VIDEO:-$RESULTS/native/native-tp8-768x928-s50.mp4}"
         test -f "$REFERENCE"

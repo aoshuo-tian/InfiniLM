@@ -158,13 +158,16 @@ def main():
     if not args.model.is_dir():
         parser.error('Model directory unavailable')
     output.mkdir(parents=True)
-    loaded = (check_loaded_paths(work, state) if args.backend == 'native'
-              else dict(backend='PyTorch legacy reference', native_framework_not_loaded=True))
-    if args.backend == 'native':
-        expected = {**build['libraries'], **ccl['libraries']}
-        for path, digest in loaded['mapped_libraries'].items():
-            if expected.get(str(Path(path).resolve())) != digest:
-                raise RuntimeError('Loaded library differs from this build manifest: ' + path)
+    # The original generator imports infinilm.multimodal.minimax_h3 even when
+    # --legacy is selected. Both routes must therefore verify these libraries;
+    # loading a module is distinct from choosing the model computation backend.
+    loaded = check_loaded_paths(work, state)
+    loaded['generation_backend'] = ('native_infinilm' if args.backend == 'native'
+                                    else 'legacy_pytorch')
+    expected = {**build['libraries'], **ccl['libraries']}
+    for path, digest in loaded['mapped_libraries'].items():
+        if expected.get(str(Path(path).resolve())) != digest:
+            raise RuntimeError('Loaded library differs from this build manifest: ' + path)
     (output / 'loaded-rebuilt-libraries.json').write_text(json.dumps(loaded, indent=2))
     if args.verify_only:
         print(json.dumps(dict(passed=True, verification=loaded, model_loaded=False), indent=2))

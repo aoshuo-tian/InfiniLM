@@ -35,11 +35,15 @@ torchvision CPU wheel. Comparison dependencies have their own explicit stage.
 1. Clone all three public repositories, check out the report's full commits,
    and run `git submodule update --init --recursive` in Core and LM.
 2. Export `H3_REPRO_ROOT`, `H3_FLASH_WHEEL` and optionally `H3_WHEELHOUSE`.
-   Run `reviewer_reproduce.sh prepare`, `dependencies`, and `flash`.
+   Run `reviewer_reproduce.sh prepare`, `dependencies`,
+   `comparison-dependencies`, and `flash` on shared CPU. Check the needed
+   Transformers/Diffusers interfaces and comparison imports before GPU use.
 3. In the shared CPU image, run `framework`, then `ccl`. After a lease expires,
    use the same root and run `framework` again; do not rerun `prepare` over it.
 4. In the allocated eight-DCU image, run `verify` and `communication`.
    These verify actual package/library locations and direct 2/4/8-device CCL.
+   Use matching base Python/Torch/NumPy identities between the CPU build image
+   and the DCU image; the base-identity guard intentionally rejects a mismatch.
 5. The frozen input is the included clear puppy image with SHA256
    `8dacfbb2bf2ca5593c8b33222b74e7c265380c8441a41bc09718083fe1ca3fd8`.
    The prompt is exactly `A dog falls asleep`; width 768, height 928, 124 frames,
@@ -50,7 +54,10 @@ torchvision CPU wheel. Comparison dependencies have their own explicit stage.
    mixed precision, vendor Flash and cache computation are unchanged.
 7. Run `reference` in an eight-DCU allocation using the official PyTorch legacy
    path: text modules on 0–3, Transformer modules on 4–7 with `device_map`, not
-   TP8. In a CPU session run `comparison-dependencies` and `compare`; the
+   TP8. The original generator imports native modules even with `--legacy`;
+   both routes verify the new native library identities. This import does not
+   select native model computation for the legacy reference.
+   In a CPU session run `compare` using the dependencies prepared in step 2; the
    unmodified original compare script receives both existing videos and skips
    generation. `H3_REFERENCE_VIDEO` can instead point to an existing matching
    reference. It must match the recorded input, model and parameters.
@@ -61,6 +68,15 @@ The script never allocates resources and never automatically retries jobs.
 Each generation process has a 1740-second limit, suitable for a 30-minute lease.
 Use a new `H3_OUTPUT_ROOT` for a separately authorized run; existing worker
 output directories are never overwritten.
+Comparison also refuses an existing comparison directory or stdout log. For a
+new comparison output root, explicitly supply `H3_REFERENCE_VIDEO` and
+`H3_NATIVE_VIDEO` when the existing videos reside under the previous root.
+
+CPU compilation, DCU generation and CPU comparison require the indicated
+environments. Do not concatenate all stages into a shared CPU terminal and
+expect it to switch to a DCU allocation. Re-export the same persistent root in
+each new terminal. A lease may end between stages; one process's 1740-second
+limit does not imply that several processes fit into the same 30-minute lease.
 
 ## What is compiled and what was validated
 

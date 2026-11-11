@@ -134,6 +134,49 @@ class DeliveryChecks(unittest.TestCase):
         self.assertEqual(hashlib.sha256((repo / 'examples/minimax_h3.py').read_bytes()).hexdigest(),
             'ca54a18a73a7d760d644ca4eb2c3b20678f88dfdbcfa26a62dcd3de617b31af4')
 
+    def test_reference_preflight_checks_new_libraries_without_running_worker(self):
+        import sys
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            lib = root / 'built.so'
+            lib.write_bytes(b'host fixture, not a shared library')
+            digest = hashlib.sha256(lib.read_bytes()).hexdigest()
+            flash = root / 'flash_attn_2_cuda.so'
+            flash.write_bytes(b'host Flash identity fixture')
+            model = root / 'model'
+            model.mkdir()
+            (root / 'state.json').write_text(json.dumps(dict(work=str(root))))
+            (root / 'build-status.json').write_text(json.dumps(dict(passed=True,
+                clean_host_framework=True, libraries={str(lib): digest})))
+            (root / 'ccl-build-status.json').write_text(json.dumps(dict(passed=True,
+                complete=True, libraries={})))
+            repo = HERE.parents[1]
+            image = repo / 'examples/h3_submission/tp8_20261109/profile-sources/user-puppy-clear-8dacfbb2.jpg'
+            argv = ['run_rebuilt.py', '--backend', 'reference', '--verify-only',
+                '--work', str(root), '--model', str(model), '--output', str(root / 'out'),
+                '--first-frame', str(image), '--flash-so', str(flash),
+                '--flash-sha256', hashlib.sha256(flash.read_bytes()).hexdigest()]
+            from unittest.mock import Mock
+            worker = Mock(side_effect=AssertionError('Verification must not generate'))
+            loaded = dict(mapped_libraries={str(lib): digest})
+            with patch.object(sys, 'argv', argv), patch.object(sys, 'platform', 'linux'), \
+                    patch.object(run_rebuilt, 'make_worker', return_value=({'worker': worker}, {})), \
+                    patch.object(run_rebuilt, 'check_loaded_paths', return_value=loaded) as probe:
+                run_rebuilt.main()
+                probe.assert_called_once()
+                worker.assert_not_called()
+            record = json.loads((root / 'out/loaded-rebuilt-libraries.json').read_text())
+            self.assertEqual(record['generation_backend'], 'legacy_pytorch')
+            self.assertNotIn('native_framework_not_loaded', record)
+            argv[argv.index('--output') + 1] = str(root / 'wrong-library-out')
+            with patch.object(sys, 'argv', argv), patch.object(sys, 'platform', 'linux'), \
+                    patch.object(run_rebuilt, 'make_worker', return_value=({'worker': worker}, {})), \
+                    patch.object(run_rebuilt, 'check_loaded_paths', return_value={
+                        'mapped_libraries': {str(lib): 'unapproved-library-sha'}}):
+                with self.assertRaisesRegex(RuntimeError, 'differs from this build manifest'):
+                    run_rebuilt.main()
+                worker.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
