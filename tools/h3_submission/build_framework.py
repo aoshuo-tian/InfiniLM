@@ -78,12 +78,7 @@ try:
   assert not (c/'build/.objs').exists() and not (lm/'build').exists()
   for base in [c,lm,w/'dependencies']:assert not any(p.suffix in ['.o','.so','.a'] for p in base.rglob('*') if p.is_file()),base
   save('build-origin.json',dict(initial_clean_host_framework=True,inputs=inputs(),gpu_executed=False))
- for kind in ([] if binding_resume else ['qknorm','qkrope']):
-  g=w/'dependencies'/kind/'generated';b=w/'dependencies'/kind/'build';b.mkdir(exist_ok=args_resume);objects=[]
-  for i,p in enumerate(sorted(g.glob('*.cpp'))):
-   obj=b/f'kernel-{i}.o';run(f'{kind}-host-{i}.log',['g++','-c','-fPIC','-O3','-D__HIP_PLATFORM_AMD__','-I/opt/dtk/include','-I'+str(g),p,'-o',obj]);objects.append(obj)
-  obj=b/'dispatch.o';run(kind+'-dispatch.log',['gcc','-c','-std=c11','-fPIC','-O3','-D__HIP_PLATFORM_AMD__','-I/opt/dtk/include','-I'+str(g),g/(kind+'.c'),'-o',obj]);objects.append(obj)
-  run(kind+'-archive.log',['ar','rcs',b/('libh3-'+kind+'-aot.a'),*objects])
+ # QK host objects/archives are normal dependencies of the _infinilm xmake target.
  flags=['--hygon-dcu=y','--hygon-arch=gfx936','--ninetoothed=y','--ninetoothed-flash-attention-only=y','--ninetoothed-cast=y','--ninetoothed-hygon-mha-large=y','--ninetoothed-hygon-mha-inner32=y','--ninetoothed-hygon-mha-head56=y','--ninetoothed-hygon-embedding=y','--ninetoothed-hygon-swiglu-fp32=y','--ninetoothed-hygon-adaln=y','--ninetoothed-hygon-projection-swiglu=y','--ninetoothed-hygon-gated-residual=y','--ninetoothed-hygon-dist=y','--cpu=y','--omp=y','--aten=n','--nv-gpu=n','--cuda=/opt/dtk/cuda/cuda','--ccache=n','--graph=n','--ccl=n','--use-vendor-ops=n']
  if not binding_resume:
   run('core-configure.log',[xmake,'f','-y','-m','release',*flags],c)
@@ -91,7 +86,7 @@ try:
   run('core-clean-build.log',[xmake,'build','-j','4','-v','infinicore_cpp_api'],c)
  run('core-python-build.log',[xmake,'build','-j','4','-v','_infinicore'],c)
  run('lm-configure.log',[xmake,'f','-y','-m','release','--cxx11-abi=1','--ccache=n','--ninetoothed-hygon-adaln=y','--ninetoothed-hygon-projection-swiglu=y','--ninetoothed-hygon-gated-residual=y','--ninetoothed-hygon-qknorm=y','--ninetoothed-hygon-qkrope=n'],lm)
- precreate_object_dirs(lm,['_infinilm'])
+ precreate_object_dirs(lm,['_infinilm','h3-qknorm-aot','h3-qkrope-aot'])
  run('lm-clean-build.log',[xmake,'build','-j','4','-v','_infinilm'],lm)
  exts=list((lm/'build').rglob('_infinilm*.so'));assert len(exts)==1;s['extension']=str(exts[0]);save('state.json',s)
  save('runtime-links.json',connect(w,s))

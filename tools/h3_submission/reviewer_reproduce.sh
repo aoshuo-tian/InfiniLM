@@ -57,8 +57,11 @@ case "$STAGE" in
         timeout --signal=TERM --kill-after=20s 1650s python "$TOOLS/build_ccl.py"
         ;;
     flash)
-        : "${H3_FLASH_WHEEL:?Set H3_FLASH_WHEEL to the official complete CPython 3.11 DTK 26.04 Flash wheel}"
-        python3 "$TOOLS/prepare_flash.py" --wheel "$H3_FLASH_WHEEL" --output "$WORK/vendor-flash"
+        load_build
+        FLASH_ARGS=(--output "$WORK/vendor-flash" --discover)
+        if [[ -n "${H3_FLASH_SO:-}" ]]; then FLASH_ARGS+=(--flash-so "$H3_FLASH_SO"); fi
+        if [[ -n "${H3_FLASH_WHEEL:-}" ]]; then FLASH_ARGS+=(--wheel "$H3_FLASH_WHEEL"); fi
+        python "$TOOLS/prepare_flash.py" "${FLASH_ARGS[@]}"
         ;;
     verify)
         # Requires the allocated eight-DCU image. Does not load model weights.

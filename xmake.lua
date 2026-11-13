@@ -62,6 +62,8 @@ if has_config("ninetoothed-hygon-gated-residual") then
     add_defines("INFINILM_ENABLE_NINETOOTHED_HYGON_GATED_RESIDUAL")
 end
 
+includes("xmake/h3_support.lua")
+
 target("_infinilm")
     if os.getenv("H3_REVIEW_VENDOR_HEADERS") then
         add_includedirs(os.getenv("H3_REVIEW_PYTHON_INCLUDE"), {system = true})
@@ -90,13 +92,12 @@ target("_infinilm")
     add_files("csrc/**.cc")
 
     set_installdir("python/infinilm")
-    add_includedirs(path.join(os.projectdir(), "../../dependencies/qknorm/generated"))
-    add_linkdirs("/opt/dtk/lib", path.join(os.projectdir(), "../../dependencies/qknorm/build"))
-    add_links("h3-qknorm-aot", "amdhip64")
+    -- Both wrappers are compiled even when the experimental QKRoPE route is off.
+    -- Their AOT sources are public inputs, not pre-existing archives in an AFS tree.
+    add_deps("h3-qknorm-aot", "h3-qkrope-aot")
+    add_linkdirs(path.join(os.getenv("DTK_ROOT") or "/opt/dtk", "lib"))
+    add_syslinks("amdhip64")
     add_ldflags("-Wl,-z,defs", {force = true})
-    add_includedirs(path.join(os.projectdir(), "../../dependencies/qkrope/generated"))
-    add_linkdirs(path.join(os.projectdir(), "../../dependencies/qkrope/build"))
-    add_links("h3-qkrope-aot")
 target_end()
 
 

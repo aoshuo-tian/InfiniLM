@@ -11,6 +11,25 @@ import shutil
 import subprocess
 import sys
 import sysconfig
+import tempfile
+from build_support import validate as validate_build_support
+
+
+def verify_storage(parent):
+    """Probe the actual build filesystem before copying sources or compiling."""
+    parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.h3-storage-probe-', dir=parent) as temporary:
+        root = Path(temporary)
+        program = root / 'execute.sh'
+        program.write_text('#!/bin/sh\nprintf H3_STORAGE_EXEC_PASS\n')
+        program.chmod(0o755)
+        link = root / 'relative-link'
+        link.symlink_to(program.name)
+        if not link.is_file() or link.read_bytes() != program.read_bytes():
+            raise RuntimeError('持久存储不能正确保留相对符号链接')
+        output = subprocess.check_output([str(program)], text=True)
+        if output != 'H3_STORAGE_EXEC_PASS':
+            raise RuntimeError('持久存储执行检查失败')
 
 
 def ignored(directory, names):
@@ -54,6 +73,13 @@ def main():
             parser.error('Initialize the documented submodules first: ' + str(header))
     if not Path('/opt/dtk/cuda/cuda/bin/nvcc').is_file():
         parser.error('Recorded DTK 26.04 CUDA compatibility toolchain is required')
+    if not (Path(sysconfig.get_path('include')) / 'Python.h').is_file():
+        parser.error('Python 3.11 development headers are required')
+    validate_build_support(lm / 'tools/h3_submission/support/dependencies')
+    try:
+        verify_storage(work.parent)
+    except (OSError, RuntimeError) as error:
+        parser.error('构建目录必须支持执行与符号链接；本次未复制源码或开始编译：' + str(error))
     sdk = lm / 'tools/h3_submission/support/tooling/xmake'
     if args.xmake == 'bundled':
         import hashlib
@@ -71,6 +97,8 @@ def main():
         shutil.copytree(source, work / 'sources' / name, ignore=ignored)
     for name in ('dependencies', 'tooling'):
         shutil.copytree(lm / 'tools/h3_submission/support' / name, work / name)
+    support_inputs = validate_build_support(work / 'dependencies', work / 'sources/InfiniCore')
+    (work / 'build-support-inputs.json').write_text(json.dumps(support_inputs, indent=2))
     if args.xmake == 'bundled':
         (work / 'tooling/xmake/bin/xmake').chmod(0o755)
     for directory in ('logs', 'install', 'runtime/python', 'cache/nine', 'cache/triton'):
@@ -101,6 +129,7 @@ def main():
         raise RuntimeError('GCC OpenMP runtime is required')
     env = dict(H3_HEAD56_CLEAN_WORK=str(work), H3_REVIEW_WORK=str(work),
         H3_BLOCK_STAGE_WORK=str(work), H3_REVIEW_VENDOR_HEADERS='1', HYGON_ARCH='gfx936',
+        H3_AOT_DEPENDENCIES=str(work / 'dependencies'), INFINILM_CXX11_ABI='1',
         INFINI_ROOT=str(work / 'install'), DTK_ROOT='/opt/dtk', HIP_PATH='/opt/dtk/hip',
         ROCM_PATH='/opt/dtk', HIP_PLATFORM='amd', XMAKE_ROOT='y', CCACHE_DISABLE='1',
         PYTHONUTF8='1', PYTHON=str(py), H3_REVIEW_PYTHON_INCLUDE=include,
