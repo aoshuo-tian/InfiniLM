@@ -1,0 +1,20 @@
+# Historical private-package versions, not a complete target-image lock.
+# torchvision CPU wheel SHA256: 51fe8d72ddcc88a50ff27c50dd4987d82fba8b0dfd591898ee1f60e2902d18d1
+accelerate==1.15.0
+av==18.1.0
+click==8.5.0
+diffusers==0.40.0
+hf-xet==1.5.2
+httpcore==1.0.9
+httpx==0.28.1
+huggingface_hub==1.32.0
+janus==2.0.0
+markdown-it-py==4.2.0
+mdurl==0.1.2
+rich==15.0.0
+safetensors==0.8.0
+shellingham==1.5.4
+torchvision==0.24.0+cpu
+transformers==5.10.0
+typer==0.27.3
+xxhash==3.2.0

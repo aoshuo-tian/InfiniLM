@@ -1,0 +1,10 @@
+{
+  "scope": "historical preparation receipt; not a new device test",
+  "original_receipt_sha256": "b80ffcc0b49bc2f6d9f3694a13df35d4ed3fab739298375616de2e023e8cd915",
+  "identity": {
+    "wheel_sha256": "8546e46bcbfcd346757c67a0ff180ace2a49716d9724d52ee870d04b4c3b41d1",
+    "wheel_bytes": 658898543,
+    "flash_so_sha256": "a56d9b54127d86777b55b41e06b55d246897f7ea202048af8413d9d65f1f4395",
+    "flash_so_bytes": 2088777840
+  }
+}

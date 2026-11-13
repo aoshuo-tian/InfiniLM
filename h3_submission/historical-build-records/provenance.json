@@ -1,0 +1,14 @@
+{
+  "downloaded_on": "2026-11-14",
+  "source_directory": "h3-rebuild-20261110-resume/persistent-round6/build",
+  "original_sha256": {
+    "dependency-install.json": "e2968454d83529be32547b709569c2b2ccb80da45e3936535970b5e426860d55",
+    "requirements-private-resolved.txt": "571a8a363d50f1c58129ae0a319fb99ce94114c30154113c897012a5d52070ba",
+    "reviewer-base-constraints.txt": "a6e407d9489c69719a5a7ed2faba90d81e18b41a63617903e57e05b30617f0f5",
+    "prepare.json": "b80ffcc0b49bc2f6d9f3694a13df35d4ed3fab739298375616de2e023e8cd915"
+  },
+  "raw_dependency_records_preserved": true,
+  "credentials_scan_findings": [],
+  "belongs_to_current_clean_build": false,
+  "complete_system_dependency_lock": false
+}
