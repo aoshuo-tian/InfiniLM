@@ -18,7 +18,6 @@ from build_checkpoint import pack_checkpoint, restore_checkpoint, sha
 from build_monitor import run_logged, write_json
 
 TOOLS = Path(__file__).resolve().parent
-STAGES = TOOLS/'reviewer_reproduce.sh'
 
 
 def load(path):
@@ -128,11 +127,12 @@ def execute(args, base):
     os.environ.update(config['assets'],H3_REPRO_ROOT=str(root),H3_OUTPUT_ROOT=str(base/'results'))
     for key in ('H3_FLASH_WHEEL','H3_REFERENCE_VIDEO','H3_NATIVE_VIDEO','FA_SO_PATH','FLASH_ATTN_PREBUILT'):
         os.environ.pop(key,None)
+    active_tools = TOOLS
 
     def direct(script, *arguments):
         # 直接调用公开Python CLI，避免嵌套GNU timeout另建进程组，确保预算到期能终止全部编译子进程。
         return ['bash','-c','source "$1"; shift; exec python "$@"','h3-stage',str(work/'setup.sh'),
-                str(TOOLS/script),*map(str,arguments)]
+                str(active_tools/script),*map(str,arguments)]
 
     def stage(label, command=None, resumable=False):
         timeout = end-time.monotonic()
@@ -141,7 +141,7 @@ def execute(args, base):
         def progress(row):
             report['active'] = dict(stage=label,**row)
             write_json(run/'execution-record.json',report)
-        row = run_logged(command or ['bash',str(STAGES),label],run/(label+'.log'),timeout=timeout,
+        row = run_logged(command or ['bash',str(active_tools/'reviewer_reproduce.sh'),label],run/(label+'.log'),timeout=timeout,
                          new_session=True,on_progress=progress)
         report['stages'].append(dict(stage=label,**row))
         if resumable and row.get('timed_out'):
@@ -167,6 +167,7 @@ def execute(args, base):
             stage('private-venv',[sys.executable,'-m','venv','--system-site-packages','--without-pip',str(work/'venv')])
         else:
             stage('prepare')
+        active_tools = work/'sources/InfiniLM/tools/h3_submission'
         for key in ('dependencies','comparison-dependencies','flash'):
             stage(key)
         if cpu:
@@ -209,7 +210,7 @@ def execute(args, base):
             command = direct('check_rebuilt_ccl.py','--work',work,'--output',base/'results/communication')
         elif args.stage in ('verify','native','reference'):
             flash = load(work/'vendor-flash/prepare.json')
-            image = TOOLS.parents[1]/'examples/h3_submission/tp8_20261109/profile-sources/user-puppy-clear-8dacfbb2.jpg'
+            image = active_tools.parents[1]/'examples/h3_submission/tp8_20261109/profile-sources/user-puppy-clear-8dacfbb2.jpg'
             output = base/'results'/('preflight' if args.stage == 'verify' else args.stage)
             option = ['--verify-only'] if args.stage == 'verify' else ['--backend',args.stage]
             command = direct('run_rebuilt.py','--work',work,'--model',config['assets']['H3_MODEL'],

@@ -120,6 +120,7 @@ class SessionChecks(unittest.TestCase):
         self.assertTrue(any(x.endswith('build_ccl.py') for x in commands['ccl']))
         self.assertNotIn('timeout',commands['framework'])
         self.assertIn('exec python',commands['framework'][2])
+        self.assertTrue(any('sources/InfiniLM/tools/h3_submission/build_framework.py' in str(x).replace('\\','/') for x in commands['framework']))
 
     def test_final_evidence_failure_marks_attempt_failed(self):
         fixture = self.fixture()
