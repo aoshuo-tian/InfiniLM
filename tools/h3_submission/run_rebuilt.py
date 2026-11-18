@@ -13,9 +13,6 @@ import sys
 import types
 from runtime_links import loaded_objects
 
-IMAGE_SHA = '8dacfbb2bf2ca5593c8b33222b74e7c265380c8441a41bc09718083fe1ca3fd8'
-
-
 def sha(path):
     value = hashlib.sha256()
     with Path(path).open('rb') as stream:
@@ -120,6 +117,8 @@ def main():
     parser.add_argument('--model', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--first-frame', type=Path)
+    parser.add_argument('--first-frame-sha256',
+                        help='Optional SHA256 supplied with the evaluation image')
     parser.add_argument('--flash-so', type=Path)
     parser.add_argument('--flash-sha256')
     parser.add_argument('--backend', choices=('native', 'reference'), default='native')
@@ -151,8 +150,12 @@ def main():
     for path, digest in ccl['libraries'].items():
         if not Path(path).resolve().is_relative_to(work) or sha(path) != digest:
             parser.error('Rebuilt CCL library identity changed: ' + path)
-    if sha(args.first_frame) != IMAGE_SHA:
-        parser.error('Input image identity differs from the frozen comparison profile')
+    first_frame = args.first_frame.resolve()
+    if not first_frame.is_file():
+        parser.error('--first-frame must name an existing image file')
+    first_frame_sha256 = sha(first_frame)
+    if args.first_frame_sha256 is not None and first_frame_sha256 != args.first_frame_sha256.lower():
+        parser.error('Input image SHA256 differs from --first-frame-sha256')
     if sha(args.flash_so) != args.flash_sha256:
         parser.error('Vendor Flash library SHA mismatch')
     if not args.model.is_dir():
@@ -170,7 +173,8 @@ def main():
             raise RuntimeError('Loaded library differs from this build manifest: ' + path)
     (output / 'loaded-rebuilt-libraries.json').write_text(json.dumps(loaded, indent=2))
     if args.verify_only:
-        print(json.dumps(dict(passed=True, verification=loaded, model_loaded=False), indent=2))
+        print(json.dumps(dict(passed=True, verification=loaded, model_loaded=False,
+                              first_frame_sha256=first_frame_sha256), indent=2))
         return
     flash = dict(passed=True, flash_so=str(args.flash_so.resolve()),
                  flash_so_sha256=args.flash_sha256,
@@ -184,10 +188,12 @@ def main():
             raise ValueError('Explicit Flash descriptor changed')
 
     namespace.update(FLASH_DESCRIPTOR=descriptor, FLASH_SO=args.flash_so.resolve(),
-                     INPUT_IMAGE=args.first_frame.resolve(), check_descriptor=check_descriptor)
+                     INPUT_IMAGE=first_frame, IMAGE_SHA=first_frame_sha256,
+                     check_descriptor=check_descriptor)
     (output / 'reviewer-entry.json').write_text(json.dumps(dict(anchors=anchors,
         old_runtime_restored=False, model=str(args.model.resolve()),
-        first_frame_sha256=IMAGE_SHA, parameters=namespace['PARAMETERS']), indent=2))
+        first_frame=str(first_frame), first_frame_sha256=first_frame_sha256,
+        parameters=namespace['PARAMETERS']), indent=2))
     code = namespace['worker'](work, output, args.model.resolve())
     raise SystemExit(code)
 

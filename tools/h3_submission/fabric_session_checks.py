@@ -103,6 +103,53 @@ class SessionChecks(unittest.TestCase):
             self.execute_fixture(fixture)
         self.assertEqual(fixture[5],[])
 
+    def test_compare_rejects_different_input_images(self):
+        fixture = self.fixture()
+        base, args = fixture[:2]
+        app.write_json(base/'sessions/latest-cpu.json', dict(state='ready'))
+        for stage, digest in (('native', 'a'*64), ('reference', 'b'*64)):
+            app.write_json(base/'sessions'/('stage-'+stage+'.json'), dict(passed=True))
+            output = base/'results'/stage
+            output.mkdir(parents=True)
+            app.write_json(output/'reviewer-entry.json', dict(first_frame_sha256=digest))
+        args.command, args.stage, args.timeout_seconds = 'run', 'compare', 60
+        with self.assertRaisesRegex(RuntimeError, '图片 SHA256 不一致'):
+            self.execute_fixture(fixture)
+        self.assertEqual(fixture[5], [])
+        self.assertFalse((base/'sessions/stage-compare.json').exists())
+
+    def test_generation_passes_standard_image_to_restored_worker(self):
+        fixture = self.fixture()
+        base, args, config = fixture[:3]
+        checkpoint = base/'sessions/checkpoint.tar.gz'
+        app.write_json(base/'sessions/latest-cpu.json', dict(state='ready',
+                       source_sha256=config['source_sha256'],
+                       checkpoint=dict(path=str(checkpoint), sha256='a'*64)))
+        for stage in ('verify', 'communication'):
+            app.write_json(base/'sessions'/('stage-'+stage+'.json'), dict(passed=True))
+        image = base/'Golde33443.jpg'
+        image.write_bytes(b'standard image fixture')
+        args.command, args.timeout_seconds = 'run', 60
+        args.first_frame, args.first_frame_sha256 = image, app.sha(image)
+
+        def restore(path, checksum, source_hash, root):
+            vendor = root/'build/vendor-flash'
+            vendor.mkdir(parents=True)
+            app.write_json(vendor/'prepare.json', dict(flash_so='fixture.so', flash_so_sha256='a'*64))
+            return dict(passed=True)
+
+        with patch.object(app, 'restore_checkpoint', side_effect=restore), \
+                patch.object(app, 'libraries', return_value={}):
+            for backend in ('native', 'reference'):
+                args.stage = backend
+                self.assertEqual(self.execute_fixture(fixture), 0)
+                command = fixture[5][-1][1]
+                self.assertEqual(command[command.index('--first-frame')+1], str(image))
+                self.assertEqual(command[command.index('--first-frame-sha256')+1], args.first_frame_sha256)
+                self.assertEqual(command[command.index('--backend')+1], backend)
+                self.assertTrue(Path(command[5]).as_posix().endswith(
+                    '/sources/InfiniLM/tools/h3_submission/run_rebuilt.py'))
+
     def test_timezone_and_budget_required(self):
         fixture = self.fixture()
         fixture[1].lease_end = '2030-01-01T12:00:00'

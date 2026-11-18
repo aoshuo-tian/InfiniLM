@@ -134,7 +134,7 @@ class DeliveryChecks(unittest.TestCase):
         self.assertEqual(hashlib.sha256((repo / 'examples/minimax_h3.py').read_bytes()).hexdigest(),
             'ca54a18a73a7d760d644ca4eb2c3b20678f88dfdbcfa26a62dcd3de617b31af4')
 
-    def test_reference_preflight_checks_new_libraries_without_running_worker(self):
+    def test_standard_image_and_rebuilt_library_checks(self):
         import sys
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp).resolve()
@@ -150,8 +150,9 @@ class DeliveryChecks(unittest.TestCase):
                 clean_host_framework=True, libraries={str(lib): digest})))
             (root / 'ccl-build-status.json').write_text(json.dumps(dict(passed=True,
                 complete=True, libraries={})))
-            repo = HERE.parents[1]
-            image = repo / 'examples/h3_submission/tp8_20261109/profile-sources/user-puppy-clear-8dacfbb2.jpg'
+            image = root / 'Golde33443.jpg'
+            image.write_bytes(b'reviewer-supplied image bytes fixture')
+            image_sha = run_rebuilt.sha(image)
             argv = ['run_rebuilt.py', '--backend', 'reference', '--verify-only',
                 '--work', str(root), '--model', str(model), '--output', str(root / 'out'),
                 '--first-frame', str(image), '--flash-so', str(flash),
@@ -168,6 +169,17 @@ class DeliveryChecks(unittest.TestCase):
             record = json.loads((root / 'out/loaded-rebuilt-libraries.json').read_text())
             self.assertEqual(record['generation_backend'], 'legacy_pytorch')
             self.assertNotIn('native_framework_not_loaded', record)
+            argv[argv.index('--output') + 1] = str(root / 'wrong-image-out')
+            argv.extend(['--first-frame-sha256', '0' * 64])
+            with patch.object(sys, 'argv', argv), patch.object(sys, 'platform', 'linux'), \
+                    patch.object(run_rebuilt, 'make_worker', return_value=({'worker': worker}, {})), \
+                    patch.object(run_rebuilt, 'check_loaded_paths') as probe:
+                with self.assertRaises(SystemExit) as failure:
+                    run_rebuilt.main()
+                self.assertEqual(failure.exception.code, 2)
+                probe.assert_not_called()
+            self.assertFalse((root / 'wrong-image-out').exists())
+            argv[-1] = image_sha.upper()
             argv[argv.index('--output') + 1] = str(root / 'wrong-library-out')
             with patch.object(sys, 'argv', argv), patch.object(sys, 'platform', 'linux'), \
                     patch.object(run_rebuilt, 'make_worker', return_value=({'worker': worker}, {})), \
@@ -176,6 +188,29 @@ class DeliveryChecks(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'differs from this build manifest'):
                     run_rebuilt.main()
                 worker.assert_not_called()
+            argv.remove('--verify-only')
+            for backend in ('native', 'reference'):
+                output = root / backend
+                argv[argv.index('--backend') + 1] = backend
+                argv[argv.index('--output') + 1] = str(output)
+                namespace, anchors = run_rebuilt.make_worker(backend)
+
+                def check_worker(work, worker_output, model_path):
+                    self.assertEqual(namespace['INPUT_IMAGE'], image)
+                    self.assertEqual(namespace['IMAGE_SHA'], image_sha)
+                    namespace['checked'](namespace['INPUT_IMAGE'], namespace['IMAGE_SHA'])
+                    self.assertEqual(worker_output, output)
+                    return 0
+
+                namespace['worker'] = check_worker
+                with patch.object(sys, 'argv', argv), patch.object(sys, 'platform', 'linux'), \
+                        patch.object(run_rebuilt, 'make_worker', return_value=(namespace, anchors)), \
+                        patch.object(run_rebuilt, 'check_loaded_paths', return_value=loaded):
+                    with self.assertRaises(SystemExit) as completion:
+                        run_rebuilt.main()
+                self.assertEqual(completion.exception.code, 0)
+                recorded = json.loads((output / 'reviewer-entry.json').read_text())
+                self.assertEqual(recorded['first_frame_sha256'], image_sha)
 
 
 if __name__ == '__main__':

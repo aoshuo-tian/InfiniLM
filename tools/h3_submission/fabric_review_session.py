@@ -116,6 +116,12 @@ def execute(args, base):
         needs = {'communication':['verify'],'native':['verify','communication'],
                  'reference':['verify','communication'],'compare':['native','reference']}.get(name,[])
         require(all(load(base/'sessions'/('stage-'+key+'.json'))['passed'] for key in needs), '前置阶段未通过')
+        if name == 'compare':
+            results = base/'results'
+            native = load(results/'native/reviewer-entry.json')
+            reference = load(results/'reference/reviewer-entry.json')
+            require(native['first_frame_sha256'] == reference['first_frame_sha256'],
+                    '两段视频的输入图片 SHA256 不一致')
     run = base/'sessions'/(dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+name+'-'+uuid.uuid4().hex[:8])
     run.mkdir()
     require(shutil.disk_usage(args.scratch_parent).free >= 4*1024**3, '临时盘需至少4GiB可用空间')
@@ -210,12 +216,17 @@ def execute(args, base):
             command = direct('check_rebuilt_ccl.py','--work',work,'--output',base/'results/communication')
         elif args.stage in ('verify','native','reference'):
             flash = load(work/'vendor-flash/prepare.json')
-            image = active_tools.parents[1]/'examples/h3_submission/tp8_20261109/profile-sources/user-puppy-clear-8dacfbb2.jpg'
+            image = args.first_frame
+            image_check = []
+            if image is None:
+                image = active_tools.parents[1]/'examples/h3_submission/tp8_20261109/profile-sources/user-puppy-clear-8dacfbb2.jpg'
+            if args.first_frame_sha256 is not None:
+                image_check = ['--first-frame-sha256', args.first_frame_sha256]
             output = base/'results'/('preflight' if args.stage == 'verify' else args.stage)
             option = ['--verify-only'] if args.stage == 'verify' else ['--backend',args.stage]
             command = direct('run_rebuilt.py','--work',work,'--model',config['assets']['H3_MODEL'],
                              '--first-frame',image,'--flash-so',flash['flash_so'],
-                             '--flash-sha256',flash['flash_so_sha256'],'--output',output,*option)
+                             '--flash-sha256',flash['flash_so_sha256'],'--output',output,*image_check,*option)
         stage(args.stage,command)
         report['libraries'] = libraries(work)
         report['passed'] = True
@@ -254,7 +265,18 @@ def main():
         else:
             p.add_argument('--stage',required=True,choices=('verify','communication','native','reference','compare'))
             p.add_argument('--timeout-seconds',type=int,default=1740)
+            p.add_argument('--first-frame', type=Path, help='本轮 FL2VA 评测图片')
+            p.add_argument('--first-frame-sha256', help='可选的评测图片 SHA256')
     args = parser.parse_args()
+    if args.command == 'run':
+        if (args.first_frame is not None or args.first_frame_sha256 is not None) and args.stage not in ('verify','native','reference'):
+            parser.error('--first-frame 和 --first-frame-sha256 仅用于 verify、native、reference')
+        if args.first_frame_sha256 is not None and args.first_frame is None:
+            parser.error('--first-frame-sha256 需要同时指定 --first-frame')
+        if args.first_frame is not None:
+            args.first_frame = args.first_frame.resolve()
+            if not args.first_frame.is_file():
+                parser.error('--first-frame 必须指向可读的图片文件')
     require(sys.platform == 'linux' and sys.version_info[:2] == (3,11), '需要指定Linux/Python3.11镜像')
     if args.command == 'cpu':
         require(120 <= args.reserve_seconds <= 600 and 256 <= args.checkpoint_mib <= 1024, '保存预算或归档上限不合适')
