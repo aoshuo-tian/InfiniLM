@@ -190,11 +190,17 @@ class MiniMaxH3ConditionEncoder(Qwen3VLForConditionalGeneration):
         self.runtime_device = infinicore.device(_runtime_device_type(device), device_id)
         self.torch_device = torch.device("cuda", device_id)
         self._dtype = dtype
+        if max_cache_len <= 0:
+            raise ValueError("MiniMax-H3 conditioner cache limit must be positive")
+        self._kv_cache_limit = max_cache_len
+        self._kv_initial_capacity = min(256, max_cache_len)
+        self._kv_cache_capacity = self._kv_initial_capacity
+        self._kv_cache_logged = False
         self.engine = InferEngine(
             str(self.text_encoder_path),
             device=self.runtime_device,
             distributed_config=distributed_config,
-            cache_config=StaticKVCacheConfig(1, max_cache_len),
+            cache_config=StaticKVCacheConfig(1, self._kv_cache_capacity),
             hf_config_overrides={
                 "condition_encoder_mode": True,
                 "condition_encoder_num_hidden_layers": self.num_hidden_layers,
@@ -392,9 +398,30 @@ class MiniMaxH3ConditionEncoder(Qwen3VLForConditionalGeneration):
         }
 
     def encode(self, model_inputs: Mapping[str, Any]) -> torch.Tensor:
+        shape = model_inputs["input_ids"].shape
+        if len(shape) != 2 or shape[0] != 1 or shape[1] <= 0:
+            raise ValueError("MiniMax-H3 conditioner requires one nonempty input")
+        length = shape[1]
+        if length > self._kv_cache_limit:
+            raise ValueError("Input exceeds the MiniMax-H3 conditioner cache limit")
+
         native_inputs = self._prepare_native_inputs(model_inputs)
+        if length > self._kv_cache_capacity:
+            capacity = min(self._kv_cache_limit, ((length + 255) // 256) * 256)
+            # Every call prefills from position zero, so no previous KV needs copying.
+            self.engine.reset_cache(StaticKVCacheConfig(1, capacity))
+            self._kv_cache_capacity = capacity
+
         input_ids = native_inputs.pop("input_ids")
         output = self.engine.forward_raw(input_ids, **native_inputs)
+        if not self._kv_cache_logged:
+            print(
+                f"H3 cond KV: bounded growth from {self._kv_initial_capacity} "
+                f"(input={length}, capacity={self._kv_cache_capacity}, "
+                f"limit={self._kv_cache_limit})",
+                flush=True,
+            )
+            self._kv_cache_logged = True
         return MiniMaxH3TransformerRunner._to_torch(output["logits"], self.torch_device)
 
     def forward(self, **model_inputs: Any) -> BaseModelOutputWithPast:
@@ -442,6 +469,8 @@ class MiniMaxH3TransformerRunner:
         )
         self.rope_freq_dim = int(self.engine.hf_config.get("rope_freq_dim", 16))
         self.rope_theta = float(self.engine.hf_config.get("rope_theta", 10000.0))
+        # Hygon presents DCUs as CUDA devices through its HIP build of PyTorch.
+        self.uses_source_device_bridge = self.device.type == "cuda" and torch.version.hip is not None
         if load_weights:
             load_model_state_dict_by_file(
                 self.engine,
@@ -463,6 +492,28 @@ class MiniMaxH3TransformerRunner:
         infinicore.from_torch(output).copy_(tensor)
         infinicore.sync_device()
         return output
+
+    def _to_torch_from_source(self, tensor: infinicore.Tensor, device: torch.device) -> torch.Tensor:
+        if not self.uses_source_device_bridge:
+            return self._to_torch(tensor, device)
+
+        source = tensor.device
+        previous = infinicore.device._from_infinicore_device(infinicore.get_device())
+        with torch.cuda.device(source.index):
+            try:
+                infinicore.set_device(source)
+                torch.cuda.synchronize(source.index)
+                if device.type == "cpu":
+                    return self._to_torch(tensor, device)
+                local = self._to_torch(tensor, torch.device("cuda", source.index))
+                torch.cuda.synchronize(source.index)
+                if local.device == device:
+                    return local
+                output = local.to(device)
+                torch.cuda.synchronize(output.device)
+                return output
+            finally:
+                infinicore.set_device(previous)
 
     def __call__(
         self,
@@ -488,13 +539,19 @@ class MiniMaxH3TransformerRunner:
         native_inputs = {
             name: self._to_infinicore(tensor) for name, tensor in torch_inputs.items()
         }
+        if self.uses_source_device_bridge and return_torch:
+            # Native rank streams must wait for Torch's input producers.
+            producer_devices = {tensor.device.index for tensor in torch_inputs.values()
+                                if tensor.device.type == "cuda"}
+            for index in sorted(producer_devices):
+                torch.cuda.synchronize(index)
         output = self.engine.forward_raw(None, **native_inputs)
         video = output["logits"]
         audio = output["hidden_states"]
         if return_torch:
             torch_device = inputs.video_hidden_states.device
-            video = self._to_torch(video, torch_device)
-            audio = self._to_torch(audio, torch_device)
+            video = self._to_torch_from_source(video, torch_device)
+            audio = self._to_torch_from_source(audio, torch_device)
         return MiniMaxH3TransformerOutput(sample=video, audio_sample=audio)
 
 
